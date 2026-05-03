@@ -10,6 +10,7 @@ import {
 } from "@/lib/vote-session";
 
 export const dynamic = "force-dynamic";
+export const fetchCache = "force-no-store";
 
 function coerceScore(value: unknown): number {
   if (typeof value === "bigint") return Number(value);
@@ -18,14 +19,14 @@ function coerceScore(value: unknown): number {
   return 0;
 }
 
-async function fetchActivity(supabase: SupabaseClient) {
+async function fetchActivity(supabase: SupabaseClient): Promise<ActivityItem[]> {
   const { data: voteRows } = await supabase
     .from("votes")
     .select("direction, created_at, figure_id")
     .order("created_at", { ascending: false })
     .limit(10);
 
-  if (!voteRows?.length) return [] satisfies ActivityItem[];
+  if (!voteRows?.length) return [];
 
   const ids = [...new Set(voteRows.map((v) => v.figure_id).filter(Boolean))];
   const { data: figures } = await supabase
@@ -39,8 +40,7 @@ async function fetchActivity(supabase: SupabaseClient) {
 
   return voteRows.map((v) => ({
     figureName: nameMap[v.figure_id as string] ?? "Unknown",
-    direction:
-      v.direction === "down" ? ("down" as const) : ("up" as const),
+    direction: v.direction === "down" ? ("down" as const) : ("up" as const),
     createdAt: String(v.created_at),
   }));
 }
@@ -52,22 +52,42 @@ export default async function Home() {
 
   if (!configured) {
     return (
-      <div className="mx-auto flex min-h-full flex-1 max-w-xl flex-col items-center justify-center gap-6 px-6 py-24 text-center text-zinc-100">
-        <p className="rounded-full border border-amber-500/40 bg-amber-950/70 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-amber-200">
-          Supabase missing
-        </p>
-        <h1 className="text-balance text-3xl font-semibold">Wire the database</h1>
-        <p className="text-pretty text-zinc-400">
-          Copy <span className="font-mono text-zinc-200">.env.local.example</span>{" "}
-          to <span className="font-mono text-zinc-200">.env.local</span>, add your
-          project URL &amp; anon key, run{" "}
-          <span className="font-mono text-zinc-200">SUPABASE_SETUP.sql</span> in
-          Supabase SQL editor, then restart{" "}
-          <span className="font-mono text-zinc-200">npm run dev</span>.
+      <div
+        className="mx-auto flex max-w-lg flex-1 flex-col items-center justify-center gap-6 px-6 py-24 text-center"
+        style={{ color: "#f0f0f0" }}
+      >
+        <span
+          className="rounded-full border px-3 py-1 text-[10px] font-bold uppercase tracking-widest"
+          style={{ borderColor: "#ffd700", color: "#ffd700" }}
+        >
+          Setup required
+        </span>
+        <h1 className="text-3xl font-black uppercase tracking-wide">
+          Wire the database
+        </h1>
+        <p style={{ color: "#888" }}>
+          Copy{" "}
+          <code className="rounded px-1 py-0.5 text-xs" style={{ background: "#1f1f1f" }}>
+            .env.local.example
+          </code>{" "}
+          to{" "}
+          <code className="rounded px-1 py-0.5 text-xs" style={{ background: "#1f1f1f" }}>
+            .env.local
+          </code>
+          , add Supabase keys, run{" "}
+          <code className="rounded px-1 py-0.5 text-xs" style={{ background: "#1f1f1f" }}>
+            SUPABASE_SETUP.sql
+          </code>{" "}
+          in the SQL editor, then restart{" "}
+          <code className="rounded px-1 py-0.5 text-xs" style={{ background: "#1f1f1f" }}>
+            npm run dev
+          </code>
+          .
         </p>
         <Link
           href="/about"
-          className="text-sm text-emerald-400 underline-offset-4 hover:underline"
+          className="text-sm underline-offset-4 hover:underline"
+          style={{ color: "#00ff87" }}
         >
           Learn what Aura Farmer is →
         </Link>
@@ -83,9 +103,11 @@ export default async function Home() {
 
   if (error) {
     return (
-      <div className="mx-auto flex min-h-full flex-1 max-w-xl flex-col items-center justify-center gap-4 px-6 py-24 text-center">
-        <h1 className="text-xl font-semibold text-red-400">Cannot load leaderboard</h1>
-        <p className="text-zinc-500">{error.message}</p>
+      <div className="mx-auto flex max-w-lg flex-1 flex-col items-center justify-center gap-4 px-6 py-24 text-center">
+        <h1 className="text-xl font-bold" style={{ color: "#ff3b3b" }}>
+          Cannot load leaderboard
+        </h1>
+        <p style={{ color: "#888" }}>{error.message}</p>
       </div>
     );
   }
@@ -107,15 +129,16 @@ export default async function Home() {
   const jar = await cookies();
   let votedFigureIds: string[] = [];
   try {
-    votedFigureIds = parseVotedFigureIds(
-      jar.get(VOTE_SESSION_COOKIE)?.value,
-    );
+    votedFigureIds = parseVotedFigureIds(jar.get(VOTE_SESSION_COOKIE)?.value);
   } catch {
     votedFigureIds = [];
   }
 
   return (
-    <div className="flex min-h-full flex-1 flex-col bg-zinc-950 px-4 pb-20 pt-10 text-zinc-50">
+    <div
+      className="flex min-h-full flex-1 flex-col"
+      style={{ background: "var(--bg)" }}
+    >
       <LeaderboardClient
         initialFigures={normalized}
         initialActivity={activity}
