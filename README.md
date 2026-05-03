@@ -25,8 +25,4 @@ npm run start
 
 ## Repo
 
-```text
-C:\Users\pinkm\Projects\aurafarmer-live
-```
-
-Created as a git repository; push to your remote (GitHub, etc.) when you have a URL.
+https://github.com/FaizanMalek/AuraFarmerLive
