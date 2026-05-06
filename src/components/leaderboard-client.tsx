@@ -4,6 +4,35 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 
+// ── Activity message flavour ─────────────────────────────────────────────────
+
+const UP_MSGS = [
+  (n: string) => `${n}'s aura was farmed`,
+  (n: string) => `${n} went off`,
+  (n: string) => `${n} secured the aura`,
+  (n: string) => `${n} ate and left no crumbs`,
+  (n: string) => `${n} is living in people's heads`,
+  (n: string) => `${n} just levelled up`,
+  (n: string) => `${n} said no cap and delivered`,
+  (n: string) => `${n} got a massive W`,
+];
+
+const DOWN_MSGS = [
+  (n: string) => `${n} took a massive L`,
+  (n: string) => `${n}'s aura got cooked`,
+  (n: string) => `${n} fumbled the bag`,
+  (n: string) => `${n} is not surviving this`,
+  (n: string) => `${n} fell off, no debate`,
+  (n: string) => `${n} got ratio'd`,
+  (n: string) => `${n}'s aura is in the drain`,
+  (n: string) => `${n} was cooked and served`,
+];
+
+function activityMsg(name: string, direction: "up" | "down", seed: number): string {
+  const list = direction === "up" ? UP_MSGS : DOWN_MSGS;
+  return list[seed % list.length]!(name);
+}
+
 export type FigurePublic = {
   id: string;
   name: string;
@@ -109,6 +138,11 @@ export default function LeaderboardClient({
   const [visibleCount, setVisibleCount] = useState(12);
   const [search, setSearch] = useState("");
   const [isDark, setIsDark] = useState(false);
+  const [suggestOpen, setSuggestOpen] = useState(false);
+  const [suggestName, setSuggestName] = useState("");
+  const [suggestCategory, setSuggestCategory] = useState("Celebrity");
+  const [suggestNotes, setSuggestNotes] = useState("");
+  const [suggestState, setSuggestState] = useState<"idle" | "loading" | "done" | "error">("idle");
   const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const refreshTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -214,7 +248,11 @@ export default function LeaderboardClient({
       const fig = initialFigures.find((f) => f.id === figureId);
       setActivity((prev) =>
         [
-          { figureName: fig?.name ?? "Someone", direction, createdAt: new Date().toISOString() },
+          {
+            figureName: fig?.name ?? "Someone",
+            direction,
+            createdAt: new Date().toISOString(),
+          },
           ...prev,
         ].slice(0, 8),
       );
@@ -226,6 +264,22 @@ export default function LeaderboardClient({
       router.refresh();
     } finally {
       setBusyId(null);
+    }
+  }
+
+  async function submitSuggestion(e: React.FormEvent) {
+    e.preventDefault();
+    if (!suggestName.trim() || suggestState === "loading") return;
+    setSuggestState("loading");
+    try {
+      const res = await fetch("/api/request", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: suggestName.trim(), category: suggestCategory, notes: suggestNotes.trim() }),
+      });
+      setSuggestState(res.ok ? "done" : "error");
+    } catch {
+      setSuggestState("error");
     }
   }
 
@@ -243,6 +297,13 @@ export default function LeaderboardClient({
           </p>
         </div>
         <div className="flex items-center gap-3 pt-1">
+          <button
+            type="button"
+            onClick={() => { setSuggestOpen(true); setSuggestState("idle"); }}
+            className="rounded-full border border-edge bg-card px-3 py-1 text-[12px] font-medium text-ink-2 transition-colors hover:border-ink-2 hover:text-ink"
+          >
+            + Suggest
+          </button>
           <button
             type="button"
             aria-label="Toggle dark mode"
@@ -470,10 +531,7 @@ export default function LeaderboardClient({
                   row.direction === "up" ? "bg-up" : "bg-down"
                 }`}
               />
-              <span>
-                <span className="font-medium text-ink">{row.figureName}</span>
-                {row.direction === "up" ? "'s aura was boosted" : "'s aura was drained"}
-              </span>
+              <span>{activityMsg(row.figureName, row.direction, i)}</span>
               <span className="ml-auto shrink-0 text-ink-3">{relTime(row.createdAt)}</span>
             </li>
           ))}
@@ -491,6 +549,112 @@ export default function LeaderboardClient({
           About
         </Link>
       </footer>
+
+      {/* ── Suggest a figure modal ── */}
+      {suggestOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-end justify-center bg-ink/30 px-4 pb-4 backdrop-blur-[2px] sm:items-center sm:pb-0"
+          onClick={(e) => { if (e.target === e.currentTarget) setSuggestOpen(false); }}
+        >
+          <div className="w-full max-w-[420px] rounded-2xl border border-edge bg-card shadow-xl">
+            {/* Modal header */}
+            <div className="flex items-center justify-between border-b border-edge px-5 py-4">
+              <h2 className="text-[15px] font-semibold text-ink">Suggest a figure</h2>
+              <button
+                type="button"
+                aria-label="Close"
+                onClick={() => setSuggestOpen(false)}
+                className="flex h-7 w-7 items-center justify-center rounded-full text-ink-3 transition-colors hover:bg-edge hover:text-ink"
+              >
+                <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden>
+                  <path d="M1 1L11 11M11 1L1 11" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+                </svg>
+              </button>
+            </div>
+
+            {/* Modal body */}
+            <div className="px-5 py-5">
+              {suggestState === "done" ? (
+                <div className="flex flex-col items-center gap-3 py-6 text-center">
+                  <span className="text-[32px]">🙏</span>
+                  <p className="text-[15px] font-medium text-ink">Request sent!</p>
+                  <p className="text-[13px] text-ink-2">
+                    We&apos;ll review and add them to the leaderboard soon.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setSuggestOpen(false)}
+                    className="mt-2 rounded-full border border-edge bg-card px-5 py-1.5 text-[13px] font-medium text-ink transition-colors hover:bg-edge"
+                  >
+                    Close
+                  </button>
+                </div>
+              ) : (
+                <form onSubmit={(e) => void submitSuggestion(e)} className="flex flex-col gap-4">
+                  <div>
+                    <label className="mb-1.5 block text-[12px] font-medium text-ink-2" htmlFor="suggest-name">
+                      Name <span className="text-down">*</span>
+                    </label>
+                    <input
+                      id="suggest-name"
+                      type="text"
+                      required
+                      maxLength={100}
+                      value={suggestName}
+                      onChange={(e) => setSuggestName(e.target.value)}
+                      placeholder="e.g. Gojo Satoru"
+                      className="w-full rounded-lg border border-edge bg-paper px-3 py-2 text-[14px] text-ink placeholder:text-ink-3 focus:border-ink-2 focus:outline-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="mb-1.5 block text-[12px] font-medium text-ink-2" htmlFor="suggest-category">
+                      Category
+                    </label>
+                    <select
+                      id="suggest-category"
+                      value={suggestCategory}
+                      onChange={(e) => setSuggestCategory(e.target.value)}
+                      className="w-full rounded-lg border border-edge bg-paper px-3 py-2 text-[14px] text-ink focus:border-ink-2 focus:outline-none"
+                    >
+                      {["Celebrity", "Streamer", "Athlete", "Anime character", "Musician", "Politician", "Other"].map((c) => (
+                        <option key={c} value={c}>{c}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="mb-1.5 block text-[12px] font-medium text-ink-2" htmlFor="suggest-notes">
+                      Why should they be on the list? <span className="text-ink-3">(optional)</span>
+                    </label>
+                    <textarea
+                      id="suggest-notes"
+                      rows={2}
+                      maxLength={300}
+                      value={suggestNotes}
+                      onChange={(e) => setSuggestNotes(e.target.value)}
+                      placeholder="They have massive aura because…"
+                      className="w-full resize-none rounded-lg border border-edge bg-paper px-3 py-2 text-[14px] text-ink placeholder:text-ink-3 focus:border-ink-2 focus:outline-none"
+                    />
+                  </div>
+
+                  {suggestState === "error" && (
+                    <p className="text-[12px] text-down">Something went wrong — try again.</p>
+                  )}
+
+                  <button
+                    type="submit"
+                    disabled={suggestState === "loading" || !suggestName.trim()}
+                    className="w-full rounded-full bg-ink py-2.5 text-[14px] font-semibold text-paper transition-opacity disabled:opacity-40"
+                  >
+                    {suggestState === "loading" ? "Sending…" : "Submit request"}
+                  </button>
+                </form>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Toast ── */}
       {toast && (
