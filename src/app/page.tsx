@@ -8,6 +8,7 @@ import type { ActivityItem, FigurePublic } from "@/components/leaderboard-client
 import { createSupabaseClient } from "@/lib/supabase";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { parseVotedFigureIds, VOTE_SESSION_COOKIE } from "@/lib/vote-session";
+import { getAllFigurePhotos } from "@/lib/figure-photos";
 
 export const dynamic = "force-dynamic";
 export const fetchCache = "force-no-store";
@@ -97,7 +98,7 @@ export default async function Home() {
     );
   }
 
-  const normalized: FigurePublic[] = (figures ?? []).map((row) => ({
+  const base: FigurePublic[] = (figures ?? []).map((row) => ({
     id: String(row.id),
     name: row.name ?? "",
     slug: row.slug ?? "",
@@ -107,7 +108,14 @@ export default async function Home() {
     score: coerceScore(row.score),
   }));
 
-  normalized.sort((a, b) => b.score - a.score);
+  base.sort((a, b) => b.score - a.score);
+
+  // Fetch photos for all figures (batch Wikipedia + Jikan, cached 24 h)
+  const photoMap = await getAllFigurePhotos(base, 120);
+  const normalized: FigurePublic[] = base.map((f) => ({
+    ...f,
+    photoUrl: photoMap[f.id] ?? null,
+  }));
 
   const activity = await fetchActivity(supabase);
 

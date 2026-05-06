@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createSupabaseClient } from "@/lib/supabase";
-import { getWikipediaThumb } from "@/lib/wikipedia";
+import { getFigurePhoto } from "@/lib/figure-photos";
 
 export const dynamic = "force-dynamic";
 
@@ -223,8 +223,8 @@ export default async function FigurePage({
   const upVotes = voteRows?.filter((v) => v.direction === "up").length ?? 0;
   const downVotes = totalVotes - upVotes;
 
-  // Wikipedia photo
-  const photo = await getWikipediaThumb(name, 300);
+  // Photo: Jikan for anime chars, Wikipedia for everyone else
+  const photo = await getFigurePhoto(slug, name, 300);
 
   // Rank among all figures
   const { data: allFigures } = await supabase!
@@ -250,13 +250,13 @@ export default async function FigurePage({
       {/* Hero */}
       <div className="flex items-start gap-5">
         {/* Photo / avatar */}
-        <div className="relative h-24 w-24 shrink-0 overflow-hidden rounded-2xl">
+        <div className="relative h-28 w-28 shrink-0 overflow-hidden rounded-2xl border border-edge shadow-sm">
           {photo ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={photo} alt={name} className="h-full w-full object-cover" />
+            <img src={photo} alt={name} className="h-full w-full object-cover object-top" />
           ) : (
             <div
-              className="flex h-full w-full items-center justify-center text-[24px] font-semibold text-white"
+              className="flex h-full w-full items-center justify-center text-[28px] font-semibold text-white"
               style={{ backgroundColor: String(figure.avatar_color ?? "#888580") }}
             >
               {initials || "?"}

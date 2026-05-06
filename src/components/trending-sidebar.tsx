@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { createSupabaseClient } from "@/lib/supabase";
-import { getWikipediaThumb } from "@/lib/wikipedia";
+import { getFigurePhoto } from "@/lib/figure-photos";
 
 type TrendItem = {
   figureId: string;
@@ -77,7 +77,7 @@ async function fetchTrending(): Promise<{
 
   // Fetch Wikipedia photos in parallel
   const addPhotos = (list: TrendItem[]) =>
-    Promise.all(list.map(async (item) => ({ ...item, photo: await getWikipediaThumb(item.name, 80) })));
+    Promise.all(list.map(async (item) => ({ ...item, photo: await getFigurePhoto(item.slug, item.name, 80) })));
 
   const [gainersWithPhotos, losersWithPhotos] = await Promise.all([
     addPhotos(gainers),

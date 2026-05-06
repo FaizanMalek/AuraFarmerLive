@@ -41,6 +41,7 @@ export type FigurePublic = {
   avatar_initials: string | null;
   avatar_color: string | null;
   score: number;
+  photoUrl?: string | null;
 };
 
 export type ActivityItem = {
@@ -399,12 +400,23 @@ export default function LeaderboardClient({
               <div className="w-3 shrink-0" />
 
               {/* Avatar — links to profile */}
-              <Link href={`/figure/${figure.slug}`} tabIndex={-1} aria-hidden>
-                <div
-                  className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-[14px] font-medium text-white transition-opacity hover:opacity-80"
-                  style={{ backgroundColor: figure.avatar_color ?? "#888580" }}
-                >
-                  {initials || "?"}
+              <Link href={`/figure/${figure.slug}`} tabIndex={-1} aria-hidden className="shrink-0">
+                <div className="relative h-11 w-11 overflow-hidden rounded-full transition-opacity hover:opacity-80">
+                  {figure.photoUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={figure.photoUrl}
+                      alt={figure.name}
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    <div
+                      className="flex h-full w-full items-center justify-center text-[14px] font-medium text-white"
+                      style={{ backgroundColor: figure.avatar_color ?? "#888580" }}
+                    >
+                      {initials || "?"}
+                    </div>
+                  )}
                 </div>
               </Link>
 
