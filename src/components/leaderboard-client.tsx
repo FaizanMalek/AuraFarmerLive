@@ -97,6 +97,7 @@ export default function LeaderboardClient({
   const [toast, setToast] = useState<Toast | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [optimisticVoted, setOptimisticVoted] = useState<string[]>([]);
+  const [voteDirections, setVoteDirections] = useState<Record<string, "up" | "down">>({});
   const [scoreAnimating, setScoreAnimating] = useState<string | null>(null);
   const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const refreshTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -179,6 +180,7 @@ export default function LeaderboardClient({
       const confirmed =
         typeof body.score === "number" ? body.score : prevScore + delta;
       setScores((prev) => ({ ...prev, [figureId]: confirmed }));
+      setVoteDirections((prev) => ({ ...prev, [figureId]: direction }));
 
       setScoreAnimating(figureId);
       setTimeout(() => setScoreAnimating(null), 250);
@@ -206,7 +208,7 @@ export default function LeaderboardClient({
   }
 
   return (
-    <div className="mx-auto w-full max-w-[680px] px-5 pb-16 pt-10">
+    <div className="w-full pb-16 pt-10">
 
       {/* ── Header ── */}
       <header className="flex items-start justify-between border-b border-edge pb-5">
@@ -257,10 +259,7 @@ export default function LeaderboardClient({
           const pct = Math.min(100, Math.round((Math.abs(score) / maxAbsScore) * 100));
           const already = votedIds.has(figure.id);
           const isBusy = busyId === figure.id;
-          const votedUp =
-            already &&
-            optimisticVoted.includes(figure.id) &&
-            score > (initialFigures.find((f) => f.id === figure.id)?.score ?? score);
+          const voteDir = voteDirections[figure.id]; // "up" | "down" | undefined (unknown for server-side voted)
           const initials =
             figure.avatar_initials?.trim().slice(0, 4) ??
             figure.name
@@ -342,7 +341,7 @@ export default function LeaderboardClient({
                   onClick={() => void vote(figure.id, "up")}
                   className={[
                     "flex h-8 w-8 items-center justify-center rounded-full border transition-all duration-[120ms]",
-                    already && votedUp
+                    already && voteDir === "up"
                       ? "border-up bg-up text-white"
                       : already || isBusy
                         ? "cursor-not-allowed border-edge bg-card text-ink-3 opacity-35"
@@ -362,7 +361,7 @@ export default function LeaderboardClient({
                   onClick={() => void vote(figure.id, "down")}
                   className={[
                     "flex h-8 w-8 items-center justify-center rounded-full border transition-all duration-[120ms]",
-                    already && !votedUp
+                    already && voteDir === "down"
                       ? "border-down bg-down text-white"
                       : already || isBusy
                         ? "cursor-not-allowed border-edge bg-card text-ink-3 opacity-35"

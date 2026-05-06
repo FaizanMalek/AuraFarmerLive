@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { cookies } from "next/headers";
+import { Suspense } from "react";
 import LeaderboardClient from "@/components/leaderboard-client";
+import NewsSidebar from "@/components/news-sidebar";
 import type { ActivityItem, FigurePublic } from "@/components/leaderboard-client";
 import { createSupabaseClient } from "@/lib/supabase";
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -118,11 +120,27 @@ export default async function Home() {
 
   return (
     <div className="min-h-full flex-1 bg-paper">
-      <LeaderboardClient
-        initialFigures={normalized}
-        initialActivity={activity}
-        initialVotedFigureIds={votedFigureIds}
-      />
+      {/* Two-column on xl screens, single column otherwise */}
+      <div className="mx-auto flex max-w-[1200px] items-start gap-8 px-5">
+        {/* Leaderboard — constrained to 680px max, fills available space */}
+        <div className="min-w-0 flex-1 xl:max-w-[680px]">
+          <LeaderboardClient
+            initialFigures={normalized}
+            initialActivity={activity}
+            initialVotedFigureIds={votedFigureIds}
+          />
+        </div>
+        {/* News sidebar — only visible on xl+ */}
+        <div className="hidden w-[300px] shrink-0 pt-10 xl:block">
+          <Suspense
+            fallback={
+              <div className="text-[13px] text-ink-3">Loading news…</div>
+            }
+          >
+            <NewsSidebar />
+          </Suspense>
+        </div>
+      </div>
     </div>
   );
 }
