@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
-/* ── Custom design tokens (available as Tailwind utilities) ── */
-@theme inline {
+/* ── Custom design tokens — using @theme so vars are overridable for dark mode ── */
+@theme {
   --color-paper:     #f9f7f4;
   --color-card:      #ffffff;
   --color-edge:      #e8e4df;
@@ -17,8 +17,21 @@
 
 html,
 body {
-  background: #f9f7f4;
-  color: #1a1a1a;
+  background: var(--color-paper);
+  color: var(--color-ink);
+}
+
+/* ── Dark mode — applied when <html class="dark"> ── */
+html.dark {
+  --color-paper:     #0f0e0d;
+  --color-card:      #1a1916;
+  --color-edge:      #2c2a27;
+  --color-ink:       #f0ede8;
+  --color-ink-2:     #9c9894;
+  --color-ink-3:     #5a5855;
+  --color-up:        #4ade80;
+  --color-down:      #f87171;
+  --color-bar-track: #232120;
 }
 
 /* ── Keyframes ── */

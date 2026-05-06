@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { Suspense } from "react";
 import LeaderboardClient from "@/components/leaderboard-client";
 import NewsSidebar from "@/components/news-sidebar";
+import TrendingSidebar from "@/components/trending-sidebar";
 import type { ActivityItem, FigurePublic } from "@/components/leaderboard-client";
 import { createSupabaseClient } from "@/lib/supabase";
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -120,9 +121,24 @@ export default async function Home() {
 
   return (
     <div className="min-h-full flex-1 bg-paper">
-      {/* Two-column on xl screens, single column otherwise */}
-      <div className="mx-auto flex max-w-[1200px] items-start gap-8 px-5">
-        {/* Leaderboard — constrained to 680px max, fills available space */}
+      {/*
+        Columns:
+          2xl (1536px+): trending (220px) | leaderboard (flex) | news (280px)
+          xl  (1280px+): leaderboard (flex) | news (280px)
+          <xl:            leaderboard only
+      */}
+      <div className="mx-auto flex max-w-[1500px] items-start gap-6 px-5">
+
+        {/* Trending sidebar — left, 2xl only */}
+        <div className="hidden w-[220px] shrink-0 2xl:block">
+          <div className="sticky top-8 max-h-[calc(100vh-4rem)] overflow-y-auto pb-8">
+            <Suspense fallback={<div className="pt-10 text-[13px] text-ink-3">Loading…</div>}>
+              <TrendingSidebar />
+            </Suspense>
+          </div>
+        </div>
+
+        {/* Leaderboard — center, always */}
         <div className="min-w-0 flex-1 xl:max-w-[680px]">
           <LeaderboardClient
             initialFigures={normalized}
@@ -130,18 +146,18 @@ export default async function Home() {
             initialVotedFigureIds={votedFigureIds}
           />
         </div>
-        {/* News sidebar — sticky, only visible on xl+ */}
-        <div className="hidden w-[300px] shrink-0 xl:block">
-          <div className="sticky top-8 max-h-[calc(100vh-4rem)] overflow-y-auto pt-10 pb-8">
+
+        {/* News sidebar — right, xl+ */}
+        <div className="hidden w-[280px] shrink-0 xl:block">
+          <div className="sticky top-8 max-h-[calc(100vh-4rem)] overflow-y-auto pb-8">
             <Suspense
-              fallback={
-                <div className="text-[13px] text-ink-3">Loading news…</div>
-              }
+              fallback={<div className="pt-10 text-[13px] text-ink-3">Loading news…</div>}
             >
               <NewsSidebar />
             </Suspense>
           </div>
         </div>
+
       </div>
     </div>
   );

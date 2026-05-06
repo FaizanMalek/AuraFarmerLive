@@ -36,44 +36,51 @@ function relTime(iso: string): string {
   return `${Math.floor(m / 60)}h ago`;
 }
 
-function ChevronUp({ className }: { className?: string }) {
+function ChevronUp() {
   return (
-    <svg
-      width="13"
-      height="13"
-      viewBox="0 0 13 13"
-      fill="none"
-      aria-hidden
-      className={className}
-    >
-      <path
-        d="M2.5 8.5L6.5 4.5L10.5 8.5"
-        stroke="currentColor"
-        strokeWidth="1.6"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
+    <svg width="13" height="13" viewBox="0 0 13 13" fill="none" aria-hidden>
+      <path d="M2.5 8.5L6.5 4.5L10.5 8.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
 }
 
-function ChevronDown({ className }: { className?: string }) {
+function ChevronDown() {
   return (
-    <svg
-      width="13"
-      height="13"
-      viewBox="0 0 13 13"
-      fill="none"
-      aria-hidden
-      className={className}
-    >
-      <path
-        d="M2.5 4.5L6.5 8.5L10.5 4.5"
-        stroke="currentColor"
-        strokeWidth="1.6"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
+    <svg width="13" height="13" viewBox="0 0 13 13" fill="none" aria-hidden>
+      <path d="M2.5 4.5L6.5 8.5L10.5 4.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function SearchIcon() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 15 15" fill="none" aria-hidden className="shrink-0">
+      <circle cx="6.5" cy="6.5" r="4" stroke="currentColor" strokeWidth="1.4" />
+      <path d="M10 10L13 13" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function SunIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden>
+      <circle cx="8" cy="8" r="3" stroke="currentColor" strokeWidth="1.4" />
+      <line x1="8" y1="1" x2="8" y2="3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+      <line x1="8" y1="13" x2="8" y2="15" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+      <line x1="1" y1="8" x2="3" y2="8" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+      <line x1="13" y1="8" x2="15" y2="8" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+      <line x1="2.93" y1="2.93" x2="4.34" y2="4.34" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+      <line x1="11.66" y1="11.66" x2="13.07" y2="13.07" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+      <line x1="11.66" y1="4.34" x2="13.07" y2="2.93" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+      <line x1="2.93" y1="13.07" x2="4.34" y2="11.66" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function MoonIcon() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 15 15" fill="none" aria-hidden>
+      <path d="M12 9.5A6 6 0 1 1 5.5 3a4.5 4.5 0 0 0 6.5 6.5z" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
 }
@@ -100,8 +107,22 @@ export default function LeaderboardClient({
   const [voteDirections, setVoteDirections] = useState<Record<string, "up" | "down">>({});
   const [scoreAnimating, setScoreAnimating] = useState<string | null>(null);
   const [visibleCount, setVisibleCount] = useState(12);
+  const [search, setSearch] = useState("");
+  const [isDark, setIsDark] = useState(false);
   const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const refreshTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Sync dark mode state from DOM after hydration
+  useEffect(() => {
+    setIsDark(document.documentElement.classList.contains("dark"));
+  }, []);
+
+  function toggleTheme() {
+    const next = !isDark;
+    setIsDark(next);
+    document.documentElement.classList.toggle("dark", next);
+    try { localStorage.setItem("af-theme", next ? "dark" : "light"); } catch { /* */ }
+  }
 
   const votedIds = useMemo(
     () => new Set([...initialVotedFigureIds, ...optimisticVoted]),
@@ -121,10 +142,15 @@ export default function LeaderboardClient({
   const fallingCount = useMemo(() => figures.filter((f) => f.score < 1000).length, [figures]);
 
   const filtered = useMemo(() => {
-    if (tab === "rising")  return figures.filter((f) => f.score > 2000);
-    if (tab === "falling") return figures.filter((f) => f.score < 1000);
-    return figures;
-  }, [figures, tab]);
+    let list = figures;
+    if (tab === "rising")  list = list.filter((f) => f.score > 2000);
+    if (tab === "falling") list = list.filter((f) => f.score < 1000);
+    if (search.trim()) {
+      const q = search.trim().toLowerCase();
+      list = list.filter((f) => f.name.toLowerCase().includes(q));
+    }
+    return list;
+  }, [figures, tab, search]);
 
   const maxAbsScore = useMemo(
     () => Math.max(1, ...figures.map((f) => Math.abs(f.score))),
@@ -178,8 +204,7 @@ export default function LeaderboardClient({
         return;
       }
 
-      const confirmed =
-        typeof body.score === "number" ? body.score : prevScore + delta;
+      const confirmed = typeof body.score === "number" ? body.score : prevScore + delta;
       setScores((prev) => ({ ...prev, [figureId]: confirmed }));
       setVoteDirections((prev) => ({ ...prev, [figureId]: direction }));
 
@@ -189,11 +214,7 @@ export default function LeaderboardClient({
       const fig = initialFigures.find((f) => f.id === figureId);
       setActivity((prev) =>
         [
-          {
-            figureName: fig?.name ?? "Someone",
-            direction,
-            createdAt: new Date().toISOString(),
-          },
+          { figureName: fig?.name ?? "Someone", direction, createdAt: new Date().toISOString() },
           ...prev,
         ].slice(0, 8),
       );
@@ -221,14 +242,49 @@ export default function LeaderboardClient({
             The internet&apos;s verdict on public figures.
           </p>
         </div>
-        <div className="flex items-center gap-1.5 pt-1">
+        <div className="flex items-center gap-3 pt-1">
+          <button
+            type="button"
+            aria-label="Toggle dark mode"
+            onClick={toggleTheme}
+            className="flex h-7 w-7 items-center justify-center rounded-full border border-edge bg-card text-ink-2 transition-colors hover:border-ink-2 hover:text-ink"
+          >
+            {isDark ? <SunIcon /> : <MoonIcon />}
+          </button>
           <span className="pulse-dot h-2 w-2 rounded-full bg-up" />
           <span className="text-[12px] text-ink-2">live</span>
         </div>
       </header>
 
+      {/* ── Search ── */}
+      <div className="relative mt-5">
+        <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-ink-3">
+          <SearchIcon />
+        </span>
+        <input
+          type="search"
+          value={search}
+          onChange={(e) => { setSearch(e.target.value); setVisibleCount(12); }}
+          placeholder="Search figures…"
+          aria-label="Search figures"
+          className="w-full rounded-lg border border-edge bg-card py-2 pl-9 pr-4 text-[14px] text-ink placeholder:text-ink-3 focus:border-ink-2 focus:outline-none"
+        />
+        {search && (
+          <button
+            type="button"
+            aria-label="Clear search"
+            onClick={() => setSearch("")}
+            className="absolute inset-y-0 right-3 flex items-center text-ink-3 hover:text-ink"
+          >
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden>
+              <path d="M2 2L12 12M12 2L2 12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+            </svg>
+          </button>
+        )}
+      </div>
+
       {/* ── Tabs ── */}
-      <nav className="mt-7 flex items-baseline gap-6" aria-label="Filter leaderboard">
+      <nav className="mt-5 flex items-baseline gap-6" aria-label="Filter leaderboard">
         {(
           [
             ["all",     `All (${allCount})`],
@@ -239,7 +295,7 @@ export default function LeaderboardClient({
           <button
             key={key}
             type="button"
-            onClick={() => { setTab(key); setVisibleCount(12); }}
+            onClick={() => { setTab(key); setVisibleCount(12); setSearch(""); }}
             className={
               tab === key
                 ? "border-b-2 border-ink pb-0.5 text-[14px] font-semibold text-ink"
@@ -260,63 +316,54 @@ export default function LeaderboardClient({
           const pct = Math.min(100, Math.round((Math.abs(score) / maxAbsScore) * 100));
           const already = votedIds.has(figure.id);
           const isBusy = busyId === figure.id;
-          const voteDir = voteDirections[figure.id]; // "up" | "down" | undefined (unknown for server-side voted)
+          const voteDir = voteDirections[figure.id];
           const initials =
             figure.avatar_initials?.trim().slice(0, 4) ??
-            figure.name
-              .split(/\s+/)
-              .slice(0, 2)
-              .map((p) => p[0]?.toUpperCase() ?? "")
-              .join("");
+            figure.name.split(/\s+/).slice(0, 2).map((p) => p[0]?.toUpperCase() ?? "").join("");
 
           return (
             <li
               key={figure.id}
-              className="flex items-center gap-0 rounded-[10px] border border-edge bg-card px-4 py-3.5 transition-shadow duration-150 hover:shadow-[0_2px_8px_rgba(0,0,0,0.06)]"
+              className="flex items-center gap-0 rounded-[10px] border border-edge bg-card px-4 py-3.5 transition-shadow duration-150 hover:shadow-[0_2px_8px_rgba(0,0,0,0.07)]"
             >
               {/* Rank */}
               <div className="w-8 shrink-0 text-right text-[13px] font-medium text-ink-3">
                 {rank === 1 ? "★" : rank}
               </div>
 
-              {/* gap 12 */}
               <div className="w-3 shrink-0" />
 
-              {/* Avatar */}
-              <div
-                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-[14px] font-medium text-white"
-                /* avatar_color is a dynamic DB value — minimal inline style required */
-                style={{ backgroundColor: figure.avatar_color ?? "#888580" }}
-              >
-                {initials || "?"}
-              </div>
+              {/* Avatar — links to profile */}
+              <Link href={`/figure/${figure.slug}`} tabIndex={-1} aria-hidden>
+                <div
+                  className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-[14px] font-medium text-white transition-opacity hover:opacity-80"
+                  style={{ backgroundColor: figure.avatar_color ?? "#888580" }}
+                >
+                  {initials || "?"}
+                </div>
+              </Link>
 
-              {/* gap 14 */}
               <div className="w-3.5 shrink-0" />
 
               {/* Info block */}
               <div className="min-w-0 flex-1">
-                <p className="truncate text-[15px] font-medium text-ink">
+                <Link
+                  href={`/figure/${figure.slug}`}
+                  className="block truncate text-[15px] font-medium text-ink underline-offset-2 hover:underline"
+                >
                   {figure.name}
-                </p>
+                </Link>
                 {figure.description && (
-                  <p className="truncate text-[12px] text-ink-2">
-                    {figure.description}
-                  </p>
+                  <p className="truncate text-[12px] text-ink-2">{figure.description}</p>
                 )}
-                {/* Score bar */}
                 <div className="mt-2 h-[3px] w-full overflow-hidden rounded-sm bg-bar-track">
                   <div
                     className={`h-full rounded-sm ${positive ? "bg-up" : "bg-down"}`}
-                    style={{
-                      width: `${pct}%`,
-                      transition: "width 400ms ease",
-                    }}
+                    style={{ width: `${pct}%`, transition: "width 400ms ease" }}
                   />
                 </div>
               </div>
 
-              {/* gap 16 */}
               <div className="w-4 shrink-0" />
 
               {/* Score */}
@@ -325,16 +372,13 @@ export default function LeaderboardClient({
                   positive ? "text-up" : "text-down"
                 } ${scoreAnimating === figure.id ? "score-pop" : ""}`}
               >
-                {positive ? "+" : ""}
-                {score.toLocaleString()}
+                {positive ? "+" : ""}{score.toLocaleString()}
               </div>
 
-              {/* gap 12 */}
               <div className="w-3 shrink-0" />
 
               {/* Vote buttons */}
               <div className="flex shrink-0 flex-col items-center gap-1">
-                {/* Upvote */}
                 <button
                   type="button"
                   aria-label="Boost aura"
@@ -347,14 +391,11 @@ export default function LeaderboardClient({
                       : already || isBusy
                         ? "cursor-not-allowed border-edge bg-card text-ink-3 opacity-35"
                         : "border-edge bg-card text-ink-3 hover:border-up hover:text-up",
-                  ]
-                    .filter(Boolean)
-                    .join(" ")}
+                  ].filter(Boolean).join(" ")}
                 >
                   <ChevronUp />
                 </button>
 
-                {/* Downvote */}
                 <button
                   type="button"
                   aria-label="Drain aura"
@@ -367,9 +408,7 @@ export default function LeaderboardClient({
                       : already || isBusy
                         ? "cursor-not-allowed border-edge bg-card text-ink-3 opacity-35"
                         : "border-edge bg-card text-ink-3 hover:border-down hover:text-down",
-                  ]
-                    .filter(Boolean)
-                    .join(" ")}
+                  ].filter(Boolean).join(" ")}
                 >
                   <ChevronDown />
                 </button>
@@ -381,7 +420,7 @@ export default function LeaderboardClient({
 
       {!filtered.length && (
         <p className="mt-6 text-center text-[14px] text-ink-2">
-          Nothing here — try a different filter.
+          {search ? `No results for "${search}"` : "Nothing here — try a different filter."}
         </p>
       )}
 
@@ -433,13 +472,9 @@ export default function LeaderboardClient({
               />
               <span>
                 <span className="font-medium text-ink">{row.figureName}</span>
-                {row.direction === "up"
-                  ? "'s aura was boosted"
-                  : "'s aura was drained"}
+                {row.direction === "up" ? "'s aura was boosted" : "'s aura was drained"}
               </span>
-              <span className="ml-auto shrink-0 text-ink-3">
-                {relTime(row.createdAt)}
-              </span>
+              <span className="ml-auto shrink-0 text-ink-3">{relTime(row.createdAt)}</span>
             </li>
           ))}
           {!activity.length && (
@@ -452,10 +487,7 @@ export default function LeaderboardClient({
       <footer className="mt-12 text-center text-[12px] text-ink-3">
         <span>Aura Farmer · aurafarmer.live</span>
         <span className="mx-2 text-edge">·</span>
-        <Link
-          href="/about"
-          className="underline-offset-4 transition-colors hover:text-ink-2 hover:underline"
-        >
+        <Link href="/about" className="underline-offset-4 transition-colors hover:text-ink-2 hover:underline">
           About
         </Link>
       </footer>
@@ -474,11 +506,7 @@ export default function LeaderboardClient({
           >
             <span
               className={`h-1.5 w-1.5 shrink-0 rounded-full ${
-                toast.type === "up"
-                  ? "bg-up"
-                  : toast.type === "down"
-                    ? "bg-down"
-                    : "bg-ink-3"
+                toast.type === "up" ? "bg-up" : toast.type === "down" ? "bg-down" : "bg-ink-3"
               }`}
             />
             <span className="text-[13px] text-ink">{toast.message}</span>
