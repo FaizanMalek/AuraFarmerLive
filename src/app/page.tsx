@@ -4,10 +4,7 @@ import LeaderboardClient from "@/components/leaderboard-client";
 import type { ActivityItem, FigurePublic } from "@/components/leaderboard-client";
 import { createSupabaseClient } from "@/lib/supabase";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import {
-  parseVotedFigureIds,
-  VOTE_SESSION_COOKIE,
-} from "@/lib/vote-session";
+import { parseVotedFigureIds, VOTE_SESSION_COOKIE } from "@/lib/vote-session";
 
 export const dynamic = "force-dynamic";
 export const fetchCache = "force-no-store";
@@ -24,19 +21,17 @@ async function fetchActivity(supabase: SupabaseClient): Promise<ActivityItem[]> 
     .from("votes")
     .select("direction, created_at, figure_id")
     .order("created_at", { ascending: false })
-    .limit(10);
+    .limit(8);
 
   if (!voteRows?.length) return [];
 
   const ids = [...new Set(voteRows.map((v) => v.figure_id).filter(Boolean))];
-  const { data: figures } = await supabase
+  const { data: figs } = await supabase
     .from("figures")
     .select("id, name")
     .in("id", ids);
 
-  const nameMap = Object.fromEntries(
-    (figures ?? []).map((f) => [f.id, f.name]),
-  );
+  const nameMap = Object.fromEntries((figs ?? []).map((f) => [f.id, f.name]));
 
   return voteRows.map((v) => ({
     figureName: nameMap[v.figure_id as string] ?? "Unknown",
@@ -52,44 +47,31 @@ export default async function Home() {
 
   if (!configured) {
     return (
-      <div
-        className="mx-auto flex max-w-lg flex-1 flex-col items-center justify-center gap-6 px-6 py-24 text-center"
-        style={{ color: "#f0f0f0" }}
-      >
-        <span
-          className="rounded-full border px-3 py-1 text-[10px] font-bold uppercase tracking-widest"
-          style={{ borderColor: "#ffd700", color: "#ffd700" }}
-        >
-          Setup required
-        </span>
-        <h1 className="text-3xl font-black uppercase tracking-wide">
+      <div className="mx-auto flex max-w-[680px] flex-1 flex-col items-center justify-center gap-5 px-5 py-24 text-center">
+        <p className="text-[12px] font-medium text-ink-2">Setup required</p>
+        <h1 className="text-[24px] font-semibold text-ink">
           Wire the database
         </h1>
-        <p style={{ color: "#888" }}>
+        <p className="text-[14px] text-ink-2">
           Copy{" "}
-          <code className="rounded px-1 py-0.5 text-xs" style={{ background: "#1f1f1f" }}>
+          <code className="rounded border border-edge bg-card px-1.5 py-0.5 text-xs">
             .env.local.example
           </code>{" "}
           to{" "}
-          <code className="rounded px-1 py-0.5 text-xs" style={{ background: "#1f1f1f" }}>
+          <code className="rounded border border-edge bg-card px-1.5 py-0.5 text-xs">
             .env.local
           </code>
           , add Supabase keys, run{" "}
-          <code className="rounded px-1 py-0.5 text-xs" style={{ background: "#1f1f1f" }}>
+          <code className="rounded border border-edge bg-card px-1.5 py-0.5 text-xs">
             SUPABASE_SETUP.sql
           </code>{" "}
-          in the SQL editor, then restart{" "}
-          <code className="rounded px-1 py-0.5 text-xs" style={{ background: "#1f1f1f" }}>
-            npm run dev
-          </code>
-          .
+          in the SQL editor, then restart.
         </p>
         <Link
           href="/about"
-          className="text-sm underline-offset-4 hover:underline"
-          style={{ color: "#00ff87" }}
+          className="text-[14px] text-ink-2 underline-offset-4 hover:text-ink hover:underline"
         >
-          Learn what Aura Farmer is →
+          Learn what Aura Farmer is
         </Link>
       </div>
     );
@@ -103,11 +85,11 @@ export default async function Home() {
 
   if (error) {
     return (
-      <div className="mx-auto flex max-w-lg flex-1 flex-col items-center justify-center gap-4 px-6 py-24 text-center">
-        <h1 className="text-xl font-bold" style={{ color: "#ff3b3b" }}>
+      <div className="mx-auto flex max-w-[680px] flex-1 flex-col items-center justify-center gap-3 px-5 py-24 text-center">
+        <h1 className="text-[18px] font-semibold text-down">
           Cannot load leaderboard
         </h1>
-        <p style={{ color: "#888" }}>{error.message}</p>
+        <p className="text-[14px] text-ink-2">{error.message}</p>
       </div>
     );
   }
@@ -135,10 +117,7 @@ export default async function Home() {
   }
 
   return (
-    <div
-      className="flex min-h-full flex-1 flex-col"
-      style={{ background: "var(--bg)" }}
-    >
+    <div className="min-h-full flex-1 bg-paper">
       <LeaderboardClient
         initialFigures={normalized}
         initialActivity={activity}

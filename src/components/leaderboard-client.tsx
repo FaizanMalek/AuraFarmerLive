@@ -23,32 +23,60 @@ export type ActivityItem = {
 type TabKey = "all" | "rising" | "falling";
 
 type Toast = {
-  id: number;
   message: string;
-  type: "green" | "red" | "gray";
+  type: "up" | "down" | "neutral";
   exiting: boolean;
 };
 
-function relativeTimeShort(iso: string): string {
-  const deltaMs = Date.now() - new Date(iso).getTime();
-  if (!Number.isFinite(deltaMs)) return "";
-  const sec = Math.max(0, Math.floor(deltaMs / 1000));
-  if (sec < 60) return `${sec}s ago`;
-  const min = Math.floor(sec / 60);
-  if (min < 60) return `${min}m ago`;
-  const hr = Math.floor(min / 60);
-  if (hr < 48) return `${hr}h ago`;
-  return `${Math.floor(hr / 24)}d ago`;
+function relTime(iso: string): string {
+  const s = Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 1000));
+  if (s < 60) return "just now";
+  const m = Math.floor(s / 60);
+  if (m < 60) return `${m}m ago`;
+  return `${Math.floor(m / 60)}h ago`;
 }
 
-function rankColor(rank: number): string {
-  if (rank === 1) return "text-[#ffd700]";
-  if (rank === 2) return "text-[#c0c0c0]";
-  if (rank === 3) return "text-[#cd7f32]";
-  return "text-[#888888]";
+function ChevronUp({ className }: { className?: string }) {
+  return (
+    <svg
+      width="13"
+      height="13"
+      viewBox="0 0 13 13"
+      fill="none"
+      aria-hidden
+      className={className}
+    >
+      <path
+        d="M2.5 8.5L6.5 4.5L10.5 8.5"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
 }
 
-let toastCounter = 0;
+function ChevronDown({ className }: { className?: string }) {
+  return (
+    <svg
+      width="13"
+      height="13"
+      viewBox="0 0 13 13"
+      fill="none"
+      aria-hidden
+      className={className}
+    >
+      <path
+        d="M2.5 4.5L6.5 8.5L10.5 4.5"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
 
 export default function LeaderboardClient({
   initialFigures,
@@ -65,65 +93,65 @@ export default function LeaderboardClient({
     Object.fromEntries(initialFigures.map((f) => [f.id, f.score])),
   );
   const [activity, setActivity] = useState<ActivityItem[]>(initialActivity);
-
   const [tab, setTab] = useState<TabKey>("all");
-  const [toasts, setToasts] = useState<Toast[]>([]);
+  const [toast, setToast] = useState<Toast | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [optimisticVoted, setOptimisticVoted] = useState<string[]>([]);
-  const [scoreAnimate, setScoreAnimate] = useState<
-    Record<string, "green" | "red" | null>
-  >({});
-  const refreshTimer = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [scoreAnimating, setScoreAnimating] = useState<string | null>(null);
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const refreshTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const votedIds = useMemo(
     () => new Set([...initialVotedFigureIds, ...optimisticVoted]),
     [initialVotedFigureIds, optimisticVoted],
   );
 
-  const figures = useMemo(() => {
-    return [...initialFigures]
-      .map((f) => ({ ...f, score: scores[f.id] ?? f.score }))
-      .sort((a, b) => b.score - a.score);
-  }, [initialFigures, scores]);
+  const figures = useMemo(
+    () =>
+      [...initialFigures]
+        .map((f) => ({ ...f, score: scores[f.id] ?? f.score }))
+        .sort((a, b) => b.score - a.score),
+    [initialFigures, scores],
+  );
+
+  const allCount     = figures.length;
+  const risingCount  = useMemo(() => figures.filter((f) => f.score > 2000).length, [figures]);
+  const fallingCount = useMemo(() => figures.filter((f) => f.score < 1000).length, [figures]);
 
   const filtered = useMemo(() => {
-    if (tab === "rising") return figures.filter((f) => f.score > 2000);
+    if (tab === "rising")  return figures.filter((f) => f.score > 2000);
     if (tab === "falling") return figures.filter((f) => f.score < 1000);
     return figures;
   }, [figures, tab]);
 
-  const maxScore = useMemo(
+  const maxAbsScore = useMemo(
     () => Math.max(1, ...figures.map((f) => Math.abs(f.score))),
     [figures],
   );
 
   useEffect(() => {
-    refreshTimer.current = setInterval(() => router.refresh(), 10_000);
+    refreshTimerRef.current = setInterval(() => router.refresh(), 15_000);
     return () => {
-      if (refreshTimer.current) clearInterval(refreshTimer.current);
+      if (refreshTimerRef.current) clearInterval(refreshTimerRef.current);
     };
   }, [router]);
 
-  function addToast(message: string, type: Toast["type"]) {
-    const id = ++toastCounter;
-    setToasts((prev) => [...prev, { id, message, type, exiting: false }]);
-    setTimeout(() => {
-      setToasts((prev) =>
-        prev.map((t) => (t.id === id ? { ...t, exiting: true } : t)),
-      );
-      setTimeout(
-        () => setToasts((prev) => prev.filter((t) => t.id !== id)),
-        200,
-      );
-    }, 2000);
+  function showToast(message: string, type: Toast["type"]) {
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    setToast({ message, type, exiting: false });
+    toastTimerRef.current = setTimeout(() => {
+      setToast((prev) => (prev ? { ...prev, exiting: true } : null));
+      setTimeout(() => setToast(null), 200);
+    }, 2500);
   }
 
   async function vote(figureId: string, direction: "up" | "down") {
     if (busyId || votedIds.has(figureId)) return;
-    setBusyId(figureId);
 
     const prevScore = scores[figureId] ?? 0;
     const delta = direction === "up" ? 100 : -100;
+
+    setBusyId(figureId);
     setScores((prev) => ({ ...prev, [figureId]: prevScore + delta }));
     setOptimisticVoted((prev) => [...prev, figureId]);
 
@@ -138,24 +166,22 @@ export default function LeaderboardClient({
 
       if (res.status === 403 && body.code === "already_voted") {
         setScores((prev) => ({ ...prev, [figureId]: prevScore }));
-        addToast("🔒 Already voted this session", "gray");
+        showToast("Already voted this session", "neutral");
         return;
       }
       if (!res.ok) {
         setScores((prev) => ({ ...prev, [figureId]: prevScore }));
         setOptimisticVoted((prev) => prev.filter((id) => id !== figureId));
-        addToast(body.error ?? "Vote failed — try again", "gray");
+        showToast(body.error ?? "Something went wrong", "neutral");
         return;
       }
 
-      const serverScore =
+      const confirmed =
         typeof body.score === "number" ? body.score : prevScore + delta;
-      setScores((prev) => ({ ...prev, [figureId]: serverScore }));
-      setScoreAnimate((prev) => ({ ...prev, [figureId]: direction === "up" ? "green" : "red" }));
-      setTimeout(
-        () => setScoreAnimate((prev) => ({ ...prev, [figureId]: null })),
-        520,
-      );
+      setScores((prev) => ({ ...prev, [figureId]: confirmed }));
+
+      setScoreAnimating(figureId);
+      setTimeout(() => setScoreAnimating(null), 250);
 
       const fig = initialFigures.find((f) => f.id === figureId);
       setActivity((prev) =>
@@ -166,12 +192,12 @@ export default function LeaderboardClient({
             createdAt: new Date().toISOString(),
           },
           ...prev,
-        ].slice(0, 10),
+        ].slice(0, 8),
       );
 
-      addToast(
-        direction === "up" ? "✦ Aura boosted +100" : "✦ Aura drained -100",
-        direction === "up" ? "green" : "red",
+      showToast(
+        direction === "up" ? "Aura boosted +100" : "Aura drained \u2212100",
+        direction === "up" ? "up" : "down",
       );
       router.refresh();
     } finally {
@@ -180,80 +206,61 @@ export default function LeaderboardClient({
   }
 
   return (
-    <div
-      className="mx-auto flex w-full max-w-[720px] flex-col gap-10 px-4 pb-24 pt-10"
-      style={{ color: "var(--text-primary)" }}
-    >
+    <div className="mx-auto w-full max-w-[680px] px-5 pb-16 pt-10">
+
       {/* ── Header ── */}
-      <header className="flex flex-col items-center gap-3 text-center">
-        <div className="flex items-center gap-2">
-          <span
-            className="pulse-dot h-2 w-2 rounded-full"
-            style={{ background: "var(--accent-green)" }}
-          />
-          <span
-            className="text-xs font-bold uppercase tracking-[0.25em]"
-            style={{ color: "var(--accent-green)" }}
-          >
-            LIVE
-          </span>
+      <header className="flex items-start justify-between border-b border-edge pb-5">
+        <div>
+          <h1 className="text-[28px] font-semibold leading-none tracking-tight text-ink">
+            Aura Farmer
+          </h1>
+          <p className="mt-1.5 text-[14px] text-ink-2">
+            The internet&apos;s verdict on public figures.
+          </p>
         </div>
-        <h1
-          className="text-5xl font-black uppercase tracking-[0.15em] sm:text-6xl"
-          style={{ color: "var(--accent-green)" }}
-        >
-          AURA FARMER
-        </h1>
-        <p className="text-base" style={{ color: "var(--text-secondary)" }}>
-          The internet decides who has aura.
-        </p>
+        <div className="flex items-center gap-1.5 pt-1">
+          <span className="pulse-dot h-2 w-2 rounded-full bg-up" />
+          <span className="text-[12px] text-ink-2">live</span>
+        </div>
       </header>
 
       {/* ── Tabs ── */}
-      <div
-        className="flex items-center gap-2 rounded-full p-1"
-        style={{ background: "var(--card)", border: "1px solid var(--card-border)" }}
-      >
+      <nav className="mt-7 flex items-baseline gap-6" aria-label="Filter leaderboard">
         {(
           [
-            ["all", "All"],
-            ["rising", "Rising"],
-            ["falling", "Falling"],
+            ["all",     `All (${allCount})`],
+            ["rising",  `Rising (${risingCount})`],
+            ["falling", `Falling (${fallingCount})`],
           ] as const
         ).map(([key, label]) => (
           <button
             key={key}
             type="button"
             onClick={() => setTab(key)}
-            className="flex-1 rounded-full px-4 py-2 text-xs font-bold uppercase tracking-widest transition-all duration-150"
-            style={
+            className={
               tab === key
-                ? {
-                    background: "var(--accent-green)",
-                    color: "#0a0a0a",
-                  }
-                : {
-                    color: "var(--text-secondary)",
-                  }
+                ? "border-b-2 border-ink pb-0.5 text-[14px] font-semibold text-ink"
+                : "pb-0.5 text-[14px] font-normal text-ink-2 transition-colors duration-100 hover:text-ink"
             }
           >
             {label}
           </button>
         ))}
-      </div>
+      </nav>
 
       {/* ── Leaderboard ── */}
-      <ul className="flex flex-col gap-3">
+      <ul className="mt-4 flex flex-col gap-2">
         {filtered.map((figure) => {
           const rank = figures.indexOf(figure) + 1;
           const score = figure.score;
-          const alreadyVoted = votedIds.has(figure.id);
+          const positive = score >= 0;
+          const pct = Math.min(100, Math.round((Math.abs(score) / maxAbsScore) * 100));
+          const already = votedIds.has(figure.id);
           const isBusy = busyId === figure.id;
-          const widthPct = Math.min(
-            100,
-            Math.round((Math.abs(score) / maxScore) * 100),
-          );
-          const scoreIsPositive = score >= 0;
+          const votedUp =
+            already &&
+            optimisticVoted.includes(figure.id) &&
+            score > (initialFigures.find((f) => f.id === figure.id)?.score ?? score);
           const initials =
             figure.avatar_initials?.trim().slice(0, 4) ??
             figure.name
@@ -261,158 +268,111 @@ export default function LeaderboardClient({
               .slice(0, 2)
               .map((p) => p[0]?.toUpperCase() ?? "")
               .join("");
-          const avatarBg = figure.avatar_color ?? "#1a1a1a";
-          const anim = scoreAnimate[figure.id];
 
           return (
             <li
               key={figure.id}
-              className="group rounded-2xl p-4 transition-all duration-150"
-              style={{
-                background: "var(--card)",
-                border: "1px solid var(--card-border)",
-              }}
-              onMouseEnter={(e) => {
-                (e.currentTarget as HTMLElement).style.boxShadow =
-                  "0 0 0 1px #00ff8744, 0 4px 24px #00ff8718";
-              }}
-              onMouseLeave={(e) => {
-                (e.currentTarget as HTMLElement).style.boxShadow = "none";
-              }}
+              className="flex items-center gap-0 rounded-[10px] border border-edge bg-card px-4 py-3.5 transition-shadow duration-150 hover:shadow-[0_2px_8px_rgba(0,0,0,0.06)]"
             >
-              <div className="flex items-center gap-3">
-                {/* Rank */}
-                <div
-                  className={`w-7 shrink-0 text-center text-lg font-black ${rankColor(rank)}`}
-                >
-                  {rank}
-                </div>
+              {/* Rank */}
+              <div className="w-8 shrink-0 text-right text-[13px] font-medium text-ink-3">
+                {rank === 1 ? "★" : rank}
+              </div>
 
-                {/* Avatar */}
-                <div
-                  className="flex size-[52px] shrink-0 items-center justify-center rounded-full text-sm font-bold text-white"
-                  style={{ background: avatarBg }}
-                >
-                  {initials || "?"}
-                </div>
+              {/* gap 12 */}
+              <div className="w-3 shrink-0" />
 
-                {/* Name + bar */}
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-base font-bold" style={{ color: "var(--text-primary)" }}>
-                    {figure.name}
+              {/* Avatar */}
+              <div
+                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-[14px] font-medium text-white"
+                /* avatar_color is a dynamic DB value — minimal inline style required */
+                style={{ backgroundColor: figure.avatar_color ?? "#888580" }}
+              >
+                {initials || "?"}
+              </div>
+
+              {/* gap 14 */}
+              <div className="w-3.5 shrink-0" />
+
+              {/* Info block */}
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-[15px] font-medium text-ink">
+                  {figure.name}
+                </p>
+                {figure.description && (
+                  <p className="truncate text-[12px] text-ink-2">
+                    {figure.description}
                   </p>
-                  {figure.description && (
-                    <p className="truncate text-xs" style={{ color: "var(--text-secondary)" }}>
-                      {figure.description}
-                    </p>
-                  )}
+                )}
+                {/* Score bar */}
+                <div className="mt-2 h-[3px] w-full overflow-hidden rounded-sm bg-bar-track">
                   <div
-                    className="mt-2 h-1 w-full overflow-hidden rounded-full"
-                    style={{ background: "#1f1f1f" }}
-                  >
-                    <div
-                      className="h-full rounded-full"
-                      style={{
-                        width: `${widthPct}%`,
-                        background: scoreIsPositive
-                          ? "var(--accent-green)"
-                          : "var(--accent-red)",
-                        transition: "width 400ms cubic-bezier(.4,.14,.3,1)",
-                      }}
-                    />
-                  </div>
-                </div>
-
-                {/* Score */}
-                <div className="flex shrink-0 flex-col items-end gap-2">
-                  <span
-                    className={`text-xl font-black tabular-nums ${
-                      anim === "green"
-                        ? "score-pop-green"
-                        : anim === "red"
-                          ? "score-pop-red"
-                          : ""
-                    }`}
+                    className={`h-full rounded-sm ${positive ? "bg-up" : "bg-down"}`}
                     style={{
-                      color: scoreIsPositive
-                        ? "var(--accent-green)"
-                        : "var(--accent-red)",
+                      width: `${pct}%`,
+                      transition: "width 400ms ease",
                     }}
-                  >
-                    {score >= 0 ? "+" : ""}
-                    {score.toLocaleString()}
-                  </span>
-
-                  {/* Buttons */}
-                  <div className="flex gap-2">
-                    <button
-                      type="button"
-                      disabled={isBusy || alreadyVoted}
-                      onClick={() => void vote(figure.id, "up")}
-                      title={alreadyVoted ? "Already voted this session" : "Boost aura +100"}
-                      className="flex items-center gap-1 rounded-full px-3 py-1 text-xs font-bold transition-all duration-150 disabled:pointer-events-none disabled:opacity-40"
-                      style={
-                        alreadyVoted && optimisticVoted.includes(figure.id)
-                          ? {
-                              background: "var(--accent-green)",
-                              color: "#0a0a0a",
-                              border: "1px solid var(--accent-green)",
-                            }
-                          : {
-                              background: "transparent",
-                              color: "var(--accent-green)",
-                              border: "1px solid var(--accent-green)",
-                            }
-                      }
-                      onMouseEnter={(e) => {
-                        if (!alreadyVoted && !isBusy) {
-                          (e.currentTarget as HTMLElement).style.background =
-                            "var(--accent-green)";
-                          (e.currentTarget as HTMLElement).style.color = "#0a0a0a";
-                        }
-                      }}
-                      onMouseLeave={(e) => {
-                        if (!alreadyVoted && !isBusy) {
-                          (e.currentTarget as HTMLElement).style.background =
-                            "transparent";
-                          (e.currentTarget as HTMLElement).style.color =
-                            "var(--accent-green)";
-                        }
-                      }}
-                    >
-                      {alreadyVoted ? "🔒" : "+"} Boost
-                    </button>
-                    <button
-                      type="button"
-                      disabled={isBusy || alreadyVoted}
-                      onClick={() => void vote(figure.id, "down")}
-                      title={alreadyVoted ? "Already voted this session" : "Drain aura -100"}
-                      className="flex items-center gap-1 rounded-full px-3 py-1 text-xs font-bold transition-all duration-150 disabled:pointer-events-none disabled:opacity-40"
-                      style={{
-                        background: "transparent",
-                        color: "var(--accent-red)",
-                        border: "1px solid var(--accent-red)",
-                      }}
-                      onMouseEnter={(e) => {
-                        if (!alreadyVoted && !isBusy) {
-                          (e.currentTarget as HTMLElement).style.background =
-                            "var(--accent-red)";
-                          (e.currentTarget as HTMLElement).style.color = "#0a0a0a";
-                        }
-                      }}
-                      onMouseLeave={(e) => {
-                        if (!alreadyVoted && !isBusy) {
-                          (e.currentTarget as HTMLElement).style.background =
-                            "transparent";
-                          (e.currentTarget as HTMLElement).style.color =
-                            "var(--accent-red)";
-                        }
-                      }}
-                    >
-                      − Drain
-                    </button>
-                  </div>
+                  />
                 </div>
+              </div>
+
+              {/* gap 16 */}
+              <div className="w-4 shrink-0" />
+
+              {/* Score */}
+              <div
+                className={`w-20 shrink-0 text-right text-[20px] font-semibold tabular-nums ${
+                  positive ? "text-up" : "text-down"
+                } ${scoreAnimating === figure.id ? "score-pop" : ""}`}
+              >
+                {positive ? "+" : ""}
+                {score.toLocaleString()}
+              </div>
+
+              {/* gap 12 */}
+              <div className="w-3 shrink-0" />
+
+              {/* Vote buttons */}
+              <div className="flex shrink-0 flex-col items-center gap-1">
+                {/* Upvote */}
+                <button
+                  type="button"
+                  aria-label="Boost aura"
+                  disabled={isBusy || already}
+                  onClick={() => void vote(figure.id, "up")}
+                  className={[
+                    "flex h-8 w-8 items-center justify-center rounded-full border transition-all duration-[120ms]",
+                    already && votedUp
+                      ? "border-up bg-up text-white"
+                      : already || isBusy
+                        ? "cursor-not-allowed border-edge bg-card text-ink-3 opacity-35"
+                        : "border-edge bg-card text-ink-3 hover:border-up hover:text-up",
+                  ]
+                    .filter(Boolean)
+                    .join(" ")}
+                >
+                  <ChevronUp />
+                </button>
+
+                {/* Downvote */}
+                <button
+                  type="button"
+                  aria-label="Drain aura"
+                  disabled={isBusy || already}
+                  onClick={() => void vote(figure.id, "down")}
+                  className={[
+                    "flex h-8 w-8 items-center justify-center rounded-full border transition-all duration-[120ms]",
+                    already && !votedUp
+                      ? "border-down bg-down text-white"
+                      : already || isBusy
+                        ? "cursor-not-allowed border-edge bg-card text-ink-3 opacity-35"
+                        : "border-edge bg-card text-ink-3 hover:border-down hover:text-down",
+                  ]
+                    .filter(Boolean)
+                    .join(" ")}
+                >
+                  <ChevronDown />
+                </button>
               </div>
             </li>
           );
@@ -420,111 +380,84 @@ export default function LeaderboardClient({
       </ul>
 
       {!filtered.length && (
-        <p className="text-center text-sm" style={{ color: "var(--text-secondary)" }}>
-          No one here — try another tab.
+        <p className="mt-6 text-center text-[14px] text-ink-2">
+          Nothing here — try a different filter.
         </p>
       )}
 
+      {/* ── Divider ── */}
+      <div className="mt-8 border-t border-edge" />
+
       {/* ── Activity Feed ── */}
-      <section className="space-y-3">
-        <div className="flex items-center gap-2">
-          <span
-            className="pulse-dot h-2 w-2 rounded-full"
-            style={{ background: "var(--accent-green)" }}
-          />
-          <h2
-            className="text-xs font-black uppercase tracking-[0.25em]"
-            style={{ color: "var(--text-secondary)" }}
-          >
-            LIVE FEED
-          </h2>
-        </div>
-        <ul
-          className="divide-y rounded-xl"
-          style={{
-            background: "var(--card)",
-            border: "1px solid var(--card-border)",
-          }}
-        >
-          {activity.slice(0, 10).map((row, i) => (
+      <section className="mt-8">
+        <h2 className="mb-4 text-[11px] font-medium uppercase tracking-[0.08em] text-ink-3">
+          Recent Activity
+        </h2>
+        <ul className="flex flex-col gap-2.5">
+          {activity.slice(0, 8).map((row, i) => (
             <li
               key={`${row.createdAt}-${i}`}
-              className="feed-item-enter flex items-center gap-2 px-4 py-3 text-sm"
+              className="feed-item-enter flex items-center gap-2 text-[12px] text-ink-2"
             >
               <span
-                className="h-2 w-2 shrink-0 rounded-full"
-                style={{
-                  background:
-                    row.direction === "up"
-                      ? "var(--accent-green)"
-                      : "var(--accent-red)",
-                }}
+                className={`h-1.5 w-1.5 shrink-0 rounded-full ${
+                  row.direction === "up" ? "bg-up" : "bg-down"
+                }`}
               />
-              <span style={{ color: "var(--text-primary)" }}>{row.figureName}</span>
-              <span
-                style={{
-                  color:
-                    row.direction === "up"
-                      ? "var(--accent-green)"
-                      : "var(--accent-red)",
-                }}
-              >
-                aura {row.direction === "up" ? "boosted +100" : "drained -100"}
+              <span>
+                <span className="font-medium text-ink">{row.figureName}</span>
+                {row.direction === "up"
+                  ? "'s aura was boosted"
+                  : "'s aura was drained"}
               </span>
-              <span className="ml-auto shrink-0" style={{ color: "var(--text-secondary)" }}>
-                {relativeTimeShort(row.createdAt)}
+              <span className="ml-auto shrink-0 text-ink-3">
+                {relTime(row.createdAt)}
               </span>
             </li>
           ))}
           {!activity.length && (
-            <li className="px-4 py-6 text-center text-sm" style={{ color: "var(--text-secondary)" }}>
-              No votes yet — be the first.
-            </li>
+            <li className="text-[12px] text-ink-3">No votes yet.</li>
           )}
         </ul>
-        <p className="text-center text-[11px]" style={{ color: "#444" }}>
-          New here?{" "}
-          <Link
-            href="/about"
-            className="underline-offset-2 hover:underline"
-            style={{ color: "var(--accent-green)" }}
-          >
-            Learn how it works
-          </Link>
-        </p>
       </section>
 
-      {/* ── Toasts ── */}
-      <div className="pointer-events-none fixed inset-x-0 bottom-8 z-50 flex flex-col items-center gap-2 px-4">
-        {toasts.map((t) => (
+      {/* ── Footer ── */}
+      <footer className="mt-12 text-center text-[12px] text-ink-3">
+        <span>Aura Farmer · aurafarmer.live</span>
+        <span className="mx-2 text-edge">·</span>
+        <Link
+          href="/about"
+          className="underline-offset-4 transition-colors hover:text-ink-2 hover:underline"
+        >
+          About
+        </Link>
+      </footer>
+
+      {/* ── Toast ── */}
+      {toast && (
+        <div
+          className={`pointer-events-none fixed inset-x-0 bottom-8 z-50 flex justify-center px-5 ${
+            toast.exiting ? "toast-exit" : "toast-enter"
+          }`}
+        >
           <div
-            key={t.id}
             role="status"
             aria-live="polite"
-            className={`rounded-full px-4 py-2 text-sm font-semibold shadow-xl backdrop-blur ${
-              t.exiting ? "toast-exit" : "toast-enter"
-            }`}
-            style={{
-              background: "#181818",
-              border: `1px solid ${
-                t.type === "green"
-                  ? "var(--accent-green)"
-                  : t.type === "red"
-                    ? "var(--accent-red)"
-                    : "#444"
-              }`,
-              color:
-                t.type === "green"
-                  ? "var(--accent-green)"
-                  : t.type === "red"
-                    ? "var(--accent-red)"
-                    : "var(--text-secondary)",
-            }}
+            className="flex items-center gap-2 rounded-lg border border-edge bg-card px-[18px] py-2.5 shadow-sm"
           >
-            {t.message}
+            <span
+              className={`h-1.5 w-1.5 shrink-0 rounded-full ${
+                toast.type === "up"
+                  ? "bg-up"
+                  : toast.type === "down"
+                    ? "bg-down"
+                    : "bg-ink-3"
+              }`}
+            />
+            <span className="text-[13px] text-ink">{toast.message}</span>
           </div>
-        ))}
-      </div>
+        </div>
+      )}
     </div>
   );
 }

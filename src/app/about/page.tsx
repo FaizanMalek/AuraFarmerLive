@@ -4,171 +4,134 @@ import Link from "next/link";
 export const metadata: Metadata = {
   title: "About",
   description:
-    "What Aura Farmer is, how voting works, why celebrities, and how to contact us.",
+    "What Aura Farmer is, how voting works, why it matters, and how to contact us.",
 };
 
 export default function AboutPage() {
   return (
-    <div
-      className="mx-auto flex max-w-2xl flex-col gap-10 px-6 py-14"
-      style={{ color: "#f0f0f0" }}
-    >
-      <header className="space-y-3">
-        <p
-          className="text-[10px] font-black uppercase tracking-[0.35em]"
-          style={{ color: "#00ff87" }}
-        >
-          AURA FARMER · ABOUT
-        </p>
-        <h1 className="text-4xl font-black uppercase tracking-wide">
-          What Is Aura Farmer?
+    <div className="mx-auto max-w-[600px] px-5 pb-20 pt-12">
+
+      {/* Back */}
+      <Link
+        href="/"
+        className="mb-10 inline-block text-[13px] text-ink-2 underline-offset-4 transition-colors hover:text-ink hover:underline"
+      >
+        ← Leaderboard
+      </Link>
+
+      {/* Header */}
+      <header className="mb-10 border-b border-edge pb-8">
+        <h1 className="text-[28px] font-semibold leading-tight tracking-tight text-ink">
+          About Aura Farmer
         </h1>
-        <p style={{ color: "#888" }}>
-          The internet&apos;s crowdsourced verdict on who&apos;s gaining or
-          losing cultural aura — updated in real time, no login required.
+        <p className="mt-3 text-[15px] leading-relaxed text-ink-2">
+          A live, crowdsourced leaderboard for public figures — built for the
+          generation that judges people on vibes.
         </p>
       </header>
 
-      <div
-        className="h-px w-full"
-        style={{ background: "#1f1f1f" }}
-        aria-hidden
-      />
+      {/* Sections */}
+      <div className="flex flex-col gap-10">
 
-      <section id="what-is" className="space-y-4 scroll-mt-24">
-        <h2 className="text-xl font-black uppercase tracking-wide">
-          The Concept
-        </h2>
-        <p style={{ color: "#888" }}>
-          &ldquo;Aura&rdquo; is a cultural shorthand — Gen Z slang for someone&apos;s
-          presence, reputation, and overall energy in the public eye. Aura
-          Farmer takes that idea and makes it live and interactive. Real people
-          vote, scores move, and the leaderboard tells the story of who the
-          internet thinks is winning or losing right now.
-        </p>
-        <p style={{ color: "#888" }}>
-          It&apos;s built for speed, shareability, and honesty. No algorithm,
-          no editorial picks — just raw crowdsourced opinion at scale.
-        </p>
-      </section>
+        <section id="what-is">
+          <h2 className="mb-3 text-[18px] font-semibold text-ink">
+            What is Aura Farmer?
+          </h2>
+          <div className="flex flex-col gap-3 text-[15px] leading-[1.7] text-ink-2">
+            <p>
+              Aura Farmer is an entertainment site where anyone can vote on the
+              &ldquo;aura&rdquo; of well-known public figures. Aura is a cultural
+              shorthand — popularised by Gen Z — for someone&rsquo;s presence,
+              reputation, and energy in the public eye. It goes up when people
+              think you&rsquo;re winning. It goes down when you do something the
+              internet doesn&rsquo;t forgive.
+            </p>
+            <p>
+              The leaderboard updates in real time as votes come in from around
+              the world. Scores are stored in a shared database, so every visitor
+              sees the same live numbers. There is no algorithm, no editorial
+              curation, and no promoted content — just raw, collective opinion.
+            </p>
+          </div>
+        </section>
 
-      <div className="h-px w-full" style={{ background: "#1f1f1f" }} aria-hidden />
+        <div className="border-t border-edge" />
 
-      <section id="how-it-works" className="space-y-4 scroll-mt-24">
-        <h2 className="text-xl font-black uppercase tracking-wide">
-          How Voting Works
-        </h2>
-        <ul className="space-y-3" style={{ color: "#888" }}>
-          <li className="flex items-start gap-3">
-            <span
-              className="mt-0.5 shrink-0 text-sm font-black"
-              style={{ color: "#00ff87" }}
-            >
-              01
-            </span>
-            <span>
-              Each public figure has an aura score. Tap{" "}
-              <strong style={{ color: "#f0f0f0" }}>+ Boost</strong> to add
-              +100 aura or{" "}
-              <strong style={{ color: "#f0f0f0" }}>− Drain</strong> to remove
-              100 aura.
-            </span>
-          </li>
-          <li className="flex items-start gap-3">
-            <span
-              className="mt-0.5 shrink-0 text-sm font-black"
-              style={{ color: "#00ff87" }}
-            >
-              02
-            </span>
-            <span>
-              You get{" "}
-              <strong style={{ color: "#f0f0f0" }}>
+        <section id="how-it-works">
+          <h2 className="mb-3 text-[18px] font-semibold text-ink">
+            How voting works
+          </h2>
+          <div className="flex flex-col gap-3 text-[15px] leading-[1.7] text-ink-2">
+            <p>
+              Each public figure on the leaderboard has an aura score. To vote,
+              use the chevron buttons on each row — the up chevron boosts their
+              score by 100, the down chevron drains it by 100. Scores can go
+              negative.
+            </p>
+            <p>
+              Without creating an account, you get{" "}
+              <span className="font-medium text-ink">
                 one vote per person per browser session
-              </strong>
-              . Close and reopen the tab to start fresh — similar to how
-              Ranker-style voting works. No account needed.
-            </span>
-          </li>
-          <li className="flex items-start gap-3">
-            <span
-              className="mt-0.5 shrink-0 text-sm font-black"
-              style={{ color: "#00ff87" }}
-            >
-              03
-            </span>
-            <span>
-              Scores are stored globally in a Postgres database. Everyone
-              reading the leaderboard sees the same live numbers — scores
-              refresh every 10 seconds automatically.
-            </span>
-          </li>
-          <li className="flex items-start gap-3">
-            <span
-              className="mt-0.5 shrink-0 text-sm font-black"
-              style={{ color: "#00ff87" }}
-            >
-              04
-            </span>
-            <span>
-              Use the{" "}
-              <strong style={{ color: "#f0f0f0" }}>
-                All / Rising / Falling
-              </strong>{" "}
-              tabs to filter the leaderboard. Rising = above 2,000 aura.
-              Falling = below 1,000.
-            </span>
-          </li>
-        </ul>
-      </section>
+              </span>
+              . Once you vote on someone, that row locks until you close your
+              browser tab or clear site data. This works through a secure,
+              cryptographically signed cookie — no tracking, no account required.
+            </p>
+            <p>
+              The leaderboard refreshes automatically every 15 seconds. You can
+              filter by All, Rising (score above 2,000), or Falling (score below
+              1,000).
+            </p>
+          </div>
+        </section>
 
-      <div className="h-px w-full" style={{ background: "#1f1f1f" }} aria-hidden />
+        <div className="border-t border-edge" />
 
-      <section id="why-celebrities" className="space-y-4 scroll-mt-24">
-        <h2 className="text-xl font-black uppercase tracking-wide">
-          Why Public Figures?
-        </h2>
-        <p style={{ color: "#888" }}>
-          Public figures are already discussed, debated, and rated everywhere
-          online — Aura Farmer gives that conversation a single live score to
-          rally around. Aura scores are{" "}
-          <strong style={{ color: "#f0f0f0" }}>
-            crowdsourced opinions, not statements of fact
-          </strong>
-          . Interpret them as collective vibes, meme energy, or cultural
-          sentiment — not a formal rating or endorsement. They can go up and
-          down based on anything the internet cares about at any moment.
-        </p>
-      </section>
+        <section id="why-it-matters">
+          <h2 className="mb-3 text-[18px] font-semibold text-ink">
+            Why it matters
+          </h2>
+          <div className="flex flex-col gap-3 text-[15px] leading-[1.7] text-ink-2">
+            <p>
+              Public figures are already discussed, debated, and rated constantly
+              across social media. Aura Farmer gives that conversation a single,
+              shared number to rally around — updated live, visible to everyone.
+            </p>
+            <p>
+              Aura scores are{" "}
+              <span className="font-medium text-ink">
+                crowdsourced opinions, not statements of fact
+              </span>
+              . They reflect the collective sentiment of visitors at any given
+              moment. They are not endorsements, verdicts, or verified ratings of
+              any kind. Interpret them as cultural mood, not character judgement.
+            </p>
+          </div>
+        </section>
 
-      <div className="h-px w-full" style={{ background: "#1f1f1f" }} aria-hidden />
+        <div className="border-t border-edge" />
 
-      <section id="contact" className="space-y-4 scroll-mt-24">
-        <h2 className="text-xl font-black uppercase tracking-wide">Contact</h2>
-        <p style={{ color: "#888" }}>
-          Questions, feedback, removal requests, or partnership inquiries —
-          reach out at{" "}
-          <a
-            href="mailto:hello@aurafarmer.live"
-            className="underline-offset-4 hover:underline"
-            style={{ color: "#00ff87" }}
-          >
-            hello@aurafarmer.live
-          </a>
-          . We aim to respond within 48 hours.
-        </p>
-      </section>
+        <section id="contact">
+          <h2 className="mb-3 text-[18px] font-semibold text-ink">Contact</h2>
+          <div className="flex flex-col gap-3 text-[15px] leading-[1.7] text-ink-2">
+            <p>
+              For questions, feedback, removal requests, or partnership
+              enquiries, email us at{" "}
+              <a
+                href="mailto:hello@aurafarmer.live"
+                className="font-medium text-ink underline underline-offset-4 transition-colors hover:text-ink-2"
+              >
+                hello@aurafarmer.live
+              </a>
+              . We respond within 48 hours.
+            </p>
+          </div>
+        </section>
+      </div>
 
-      <div className="h-px w-full" style={{ background: "#1f1f1f" }} aria-hidden />
-
-      <footer>
-        <Link
-          href="/"
-          className="text-sm underline-offset-4 hover:underline"
-          style={{ color: "#00ff87" }}
-        >
-          ← Back to leaderboard
-        </Link>
+      {/* Footer */}
+      <footer className="mt-14 border-t border-edge pt-6 text-[12px] text-ink-3">
+        Aura Farmer · aurafarmer.live
       </footer>
     </div>
   );
