@@ -139,9 +139,9 @@ export default function LeaderboardClient({
   const [search, setSearch] = useState("");
   const [isDark, setIsDark] = useState(false);
   const [suggestOpen, setSuggestOpen] = useState(false);
-  const [suggestName, setSuggestName] = useState("");
-  const [suggestCategory, setSuggestCategory] = useState("Celebrity");
-  const [suggestNotes, setSuggestNotes] = useState("");
+  const [fbType, setFbType] = useState("General feedback");
+  const [fbFigure, setFbFigure] = useState("");
+  const [fbMessage, setFbMessage] = useState("");
   const [suggestState, setSuggestState] = useState<"idle" | "loading" | "done" | "error">("idle");
   const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const refreshTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -269,13 +269,17 @@ export default function LeaderboardClient({
 
   async function submitSuggestion(e: React.FormEvent) {
     e.preventDefault();
-    if (!suggestName.trim() || suggestState === "loading") return;
+    if (!fbMessage.trim() || suggestState === "loading") return;
     setSuggestState("loading");
     try {
       const res = await fetch("/api/request", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: suggestName.trim(), category: suggestCategory, notes: suggestNotes.trim() }),
+        body: JSON.stringify({
+          type: fbType,
+          message: fbMessage.trim(),
+          figureName: fbFigure.trim(),
+        }),
       });
       setSuggestState(res.ok ? "done" : "error");
     } catch {
@@ -559,7 +563,10 @@ export default function LeaderboardClient({
           <div className="w-full max-w-[420px] rounded-2xl border border-edge bg-card shadow-xl">
             {/* Modal header */}
             <div className="flex items-center justify-between border-b border-edge px-5 py-4">
-              <h2 className="text-[15px] font-semibold text-ink">Suggest a figure</h2>
+              <div>
+                <h2 className="text-[15px] font-semibold text-ink">Feedback</h2>
+                <p className="text-[12px] text-ink-3">Anonymous · no account needed</p>
+              </div>
               <button
                 type="button"
                 aria-label="Close"
@@ -576,14 +583,16 @@ export default function LeaderboardClient({
             <div className="px-5 py-5">
               {suggestState === "done" ? (
                 <div className="flex flex-col items-center gap-3 py-6 text-center">
-                  <span className="text-[32px]">🙏</span>
-                  <p className="text-[15px] font-medium text-ink">Request sent!</p>
+                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-up/10 text-[22px]">
+                    ✓
+                  </div>
+                  <p className="text-[15px] font-semibold text-ink">Sent — thank you!</p>
                   <p className="text-[13px] text-ink-2">
-                    We&apos;ll review and add them to the leaderboard soon.
+                    Your message was delivered anonymously.
                   </p>
                   <button
                     type="button"
-                    onClick={() => setSuggestOpen(false)}
+                    onClick={() => { setSuggestOpen(false); setFbMessage(""); setFbFigure(""); setFbType("General feedback"); setSuggestState("idle"); }}
                     className="mt-2 rounded-full border border-edge bg-card px-5 py-1.5 text-[13px] font-medium text-ink transition-colors hover:bg-edge"
                   >
                     Close
@@ -591,51 +600,72 @@ export default function LeaderboardClient({
                 </div>
               ) : (
                 <form onSubmit={(e) => void submitSuggestion(e)} className="flex flex-col gap-4">
-                  <div>
-                    <label className="mb-1.5 block text-[12px] font-medium text-ink-2" htmlFor="suggest-name">
-                      Name <span className="text-down">*</span>
-                    </label>
-                    <input
-                      id="suggest-name"
-                      type="text"
-                      required
-                      maxLength={100}
-                      value={suggestName}
-                      onChange={(e) => setSuggestName(e.target.value)}
-                      placeholder="e.g. Gojo Satoru"
-                      className="w-full rounded-lg border border-edge bg-paper px-3 py-2 text-[14px] text-ink placeholder:text-ink-3 focus:border-ink-2 focus:outline-none"
-                    />
+
+                  {/* Type selector — pill tabs */}
+                  <div className="flex flex-wrap gap-1.5">
+                    {["General feedback", "Suggest a figure", "Bug report", "Other"].map((t) => (
+                      <button
+                        key={t}
+                        type="button"
+                        onClick={() => setFbType(t)}
+                        className={`rounded-full border px-3 py-1 text-[12px] font-medium transition-colors ${
+                          fbType === t
+                            ? "border-ink bg-ink text-paper"
+                            : "border-edge bg-card text-ink-2 hover:border-ink-2 hover:text-ink"
+                        }`}
+                      >
+                        {t}
+                      </button>
+                    ))}
                   </div>
 
-                  <div>
-                    <label className="mb-1.5 block text-[12px] font-medium text-ink-2" htmlFor="suggest-category">
-                      Category
-                    </label>
-                    <select
-                      id="suggest-category"
-                      value={suggestCategory}
-                      onChange={(e) => setSuggestCategory(e.target.value)}
-                      className="w-full rounded-lg border border-edge bg-paper px-3 py-2 text-[14px] text-ink focus:border-ink-2 focus:outline-none"
-                    >
-                      {["Celebrity", "Streamer", "Athlete", "Anime character", "Musician", "Politician", "Other"].map((c) => (
-                        <option key={c} value={c}>{c}</option>
-                      ))}
-                    </select>
-                  </div>
+                  {/* Figure name — only shown when "Suggest a figure" */}
+                  {fbType === "Suggest a figure" && (
+                    <div>
+                      <label className="mb-1.5 block text-[12px] font-medium text-ink-2" htmlFor="fb-figure">
+                        Who should we add? <span className="text-down">*</span>
+                      </label>
+                      <input
+                        id="fb-figure"
+                        type="text"
+                        maxLength={100}
+                        value={fbFigure}
+                        onChange={(e) => setFbFigure(e.target.value)}
+                        placeholder="e.g. Gojo Satoru, Kai Cenat…"
+                        className="w-full rounded-lg border border-edge bg-paper px-3 py-2 text-[14px] text-ink placeholder:text-ink-3 focus:border-ink-2 focus:outline-none"
+                      />
+                    </div>
+                  )}
 
+                  {/* Message */}
                   <div>
-                    <label className="mb-1.5 block text-[12px] font-medium text-ink-2" htmlFor="suggest-notes">
-                      Why should they be on the list? <span className="text-ink-3">(optional)</span>
+                    <label className="mb-1.5 block text-[12px] font-medium text-ink-2" htmlFor="fb-message">
+                      {fbType === "Suggest a figure"
+                        ? "Why do they deserve to be on the list?"
+                        : fbType === "Bug report"
+                          ? "What happened?"
+                          : "Your message"}{" "}
+                      <span className="text-down">*</span>
                     </label>
                     <textarea
-                      id="suggest-notes"
-                      rows={2}
-                      maxLength={300}
-                      value={suggestNotes}
-                      onChange={(e) => setSuggestNotes(e.target.value)}
-                      placeholder="They have massive aura because…"
+                      id="fb-message"
+                      rows={4}
+                      required
+                      maxLength={2000}
+                      value={fbMessage}
+                      onChange={(e) => setFbMessage(e.target.value)}
+                      placeholder={
+                        fbType === "Suggest a figure"
+                          ? "They have massive aura because…"
+                          : fbType === "Bug report"
+                            ? "Describe the bug — what you did, what you expected, what happened…"
+                            : "What's on your mind?"
+                      }
                       className="w-full resize-none rounded-lg border border-edge bg-paper px-3 py-2 text-[14px] text-ink placeholder:text-ink-3 focus:border-ink-2 focus:outline-none"
                     />
+                    <p className="mt-1 text-right text-[11px] text-ink-3">
+                      {fbMessage.length}/2000
+                    </p>
                   </div>
 
                   {suggestState === "error" && (
@@ -644,10 +674,10 @@ export default function LeaderboardClient({
 
                   <button
                     type="submit"
-                    disabled={suggestState === "loading" || !suggestName.trim()}
+                    disabled={suggestState === "loading" || !fbMessage.trim() || (fbType === "Suggest a figure" && !fbFigure.trim())}
                     className="w-full rounded-full bg-ink py-2.5 text-[14px] font-semibold text-paper transition-opacity disabled:opacity-40"
                   >
-                    {suggestState === "loading" ? "Sending…" : "Submit request"}
+                    {suggestState === "loading" ? "Sending…" : "Send anonymously"}
                   </button>
                 </form>
               )}
