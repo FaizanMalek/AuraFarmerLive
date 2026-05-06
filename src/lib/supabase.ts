@@ -8,5 +8,11 @@ export function createSupabaseClient(): SupabaseClient {
       "Missing NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY",
     );
   }
-  return createClient(url, anon);
+  // Force no-store on Supabase requests so scores are always fresh,
+  // without polluting the route-level fetchCache and breaking photo caching.
+  return createClient(url, anon, {
+    global: {
+      fetch: (input, init) => fetch(input, { ...init, cache: "no-store" }),
+    },
+  });
 }

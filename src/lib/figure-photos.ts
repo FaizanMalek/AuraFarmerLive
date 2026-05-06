@@ -5,6 +5,42 @@
  *  Both fetches are cached 24 h by Next.js fetch caching.
  */
 
+/**
+ * Overrides for figures whose Wikipedia page title doesn't match their
+ * display name (accents, stage names, disambiguation suffixes, etc.)
+ */
+const WIKI_OVERRIDE: Record<string, string> = {
+  "steph-curry":        "Stephen Curry",
+  "neymar-jr":          "Neymar",
+  "kylian-mbappe":      "Kylian Mbappé",
+  "tyler-the-creator":  "Tyler, the Creator",
+  "ninja":              "Tyler Blevins",
+  "shroud":             "Shroud (streamer)",
+  "charli-damelio":     "Charli D'Amelio",
+  "21-savage":          "21 Savage",
+  "lil-uzi-vert":       "Lil Uzi Vert",
+  "bad-bunny":          "Bad Bunny (singer)",
+  "central-cee":        "Central Cee",
+  "travis-scott":       "Travis Scott",
+  "playboi-carti":      "Playboi Carti",
+  "ice-spice":          "Ice Spice",
+  "xqc":                "xQc",
+  "adin-ross":          "Adin Ross",
+  "pokimane":           "Pokimane",
+  "valkyrae":           "Valkyrae",
+  "hasan-piker":        "Hasan Piker",
+  "kai-cenat":          "Kai Cenat",
+  "ishowspeed":         "IShowSpeed",
+  "mrbeast":            "MrBeast",
+  "ksi":                "KSI (entertainer)",
+  "logan-paul":         "Logan Paul",
+  "doja-cat":           "Doja Cat",
+  "sabrina-carpenter":  "Sabrina Carpenter",
+  "olivia-rodrigo":     "Olivia Rodrigo",
+  "timothee-chalamet":  "Timothée Chalamet",
+  "addison-rae":        "Addison Rae",
+};
+
 // ── Anime character slug → best MAL search term ─────────────────────────────
 
 export const ANIME_QUERY: Record<string, string> = {
@@ -108,8 +144,9 @@ export async function getFigurePhoto(
 ): Promise<string | null> {
   const animeQuery = ANIME_QUERY[slug];
   if (animeQuery) return getJikanPhoto(animeQuery);
-  const results = await batchWikipediaPhotos([name], size);
-  return results[name] ?? null;
+  const lookupName = WIKI_OVERRIDE[slug] ?? name;
+  const results = await batchWikipediaPhotos([lookupName], size);
+  return results[lookupName] ?? null;
 }
 
 /** Get photo URLs for all figures at once (used on the home page). */
@@ -120,7 +157,12 @@ export async function getAllFigurePhotos(
   const anime = figures.filter((f) => ANIME_QUERY[f.slug]);
   const real  = figures.filter((f) => !ANIME_QUERY[f.slug]);
 
-  // Fire anime (Jikan) and Wikipedia batch concurrently
+  // Apply slug→name overrides so Wikipedia finds the right page
+  const realMapped = real.map((f) => ({
+    ...f,
+    lookupName: WIKI_OVERRIDE[f.slug] ?? f.name,
+  }));
+
   const [animeResults, wikiResults] = await Promise.all([
     Promise.all(
       anime.map(async (f) => {
@@ -128,8 +170,10 @@ export async function getAllFigurePhotos(
         return [f.id, photo] as [string, string | null];
       }),
     ),
-    batchWikipediaPhotos(real.map((f) => f.name), size).then((map) =>
-      real.map((f) => [f.id, map[f.name] ?? null] as [string, string | null]),
+    batchWikipediaPhotos(realMapped.map((f) => f.lookupName), size).then((map) =>
+      realMapped.map(
+        (f) => [f.id, map[f.lookupName] ?? null] as [string, string | null],
+      ),
     ),
   ]);
 

@@ -10,8 +10,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { parseVotedFigureIds, VOTE_SESSION_COOKIE } from "@/lib/vote-session";
 import { getAllFigurePhotos, ANIME_QUERY } from "@/lib/figure-photos";
 
-export const dynamic = "force-dynamic";
-export const fetchCache = "force-no-store";
+export const dynamic = "force-dynamic"; // never statically pre-render — Supabase client handles its own no-store
 
 function coerceScore(value: unknown): number {
   if (typeof value === "bigint") return Number(value);
