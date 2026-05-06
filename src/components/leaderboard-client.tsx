@@ -99,6 +99,7 @@ export default function LeaderboardClient({
   const [optimisticVoted, setOptimisticVoted] = useState<string[]>([]);
   const [voteDirections, setVoteDirections] = useState<Record<string, "up" | "down">>({});
   const [scoreAnimating, setScoreAnimating] = useState<string | null>(null);
+  const [visibleCount, setVisibleCount] = useState(12);
   const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const refreshTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -238,7 +239,7 @@ export default function LeaderboardClient({
           <button
             key={key}
             type="button"
-            onClick={() => setTab(key)}
+            onClick={() => { setTab(key); setVisibleCount(12); }}
             className={
               tab === key
                 ? "border-b-2 border-ink pb-0.5 text-[14px] font-semibold text-ink"
@@ -252,7 +253,7 @@ export default function LeaderboardClient({
 
       {/* ── Leaderboard ── */}
       <ul className="mt-4 flex flex-col gap-2">
-        {filtered.map((figure) => {
+        {filtered.slice(0, visibleCount).map((figure) => {
           const rank = figures.indexOf(figure) + 1;
           const score = figure.score;
           const positive = score >= 0;
@@ -382,6 +383,33 @@ export default function LeaderboardClient({
         <p className="mt-6 text-center text-[14px] text-ink-2">
           Nothing here — try a different filter.
         </p>
+      )}
+
+      {/* Show more / collapse */}
+      {filtered.length > 12 && (
+        <div className="mt-3 flex items-center gap-4">
+          {visibleCount < filtered.length && (
+            <button
+              type="button"
+              onClick={() => setVisibleCount((n) => n + 12)}
+              className="text-[13px] text-ink-2 underline-offset-4 transition-colors hover:text-ink hover:underline"
+            >
+              Show {Math.min(12, filtered.length - visibleCount)} more
+            </button>
+          )}
+          {visibleCount > 12 && (
+            <button
+              type="button"
+              onClick={() => setVisibleCount(12)}
+              className="text-[13px] text-ink-3 underline-offset-4 transition-colors hover:text-ink-2 hover:underline"
+            >
+              Collapse
+            </button>
+          )}
+          <span className="text-[12px] text-ink-3">
+            Showing {Math.min(visibleCount, filtered.length)} of {filtered.length}
+          </span>
+        </div>
       )}
 
       {/* ── Divider ── */}

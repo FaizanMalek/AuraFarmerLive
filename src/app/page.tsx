@@ -130,15 +130,17 @@ export default async function Home() {
             initialVotedFigureIds={votedFigureIds}
           />
         </div>
-        {/* News sidebar — only visible on xl+ */}
-        <div className="hidden w-[300px] shrink-0 pt-10 xl:block">
-          <Suspense
-            fallback={
-              <div className="text-[13px] text-ink-3">Loading news…</div>
-            }
-          >
-            <NewsSidebar />
-          </Suspense>
+        {/* News sidebar — sticky, only visible on xl+ */}
+        <div className="hidden w-[300px] shrink-0 xl:block">
+          <div className="sticky top-8 max-h-[calc(100vh-4rem)] overflow-y-auto pt-10 pb-8">
+            <Suspense
+              fallback={
+                <div className="text-[13px] text-ink-3">Loading news…</div>
+              }
+            >
+              <NewsSidebar />
+            </Suspense>
+          </div>
         </div>
       </div>
     </div>
