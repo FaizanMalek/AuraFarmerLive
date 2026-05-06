@@ -7,7 +7,7 @@
 
 // ── Anime character slug → best MAL search term ─────────────────────────────
 
-const ANIME_QUERY: Record<string, string> = {
+export const ANIME_QUERY: Record<string, string> = {
   "gojo-satoru":    "Gojo Satoru",
   "toji-fushiguro": "Toji Fushiguro",
   "itadori-yuji":   "Yuji Itadori",

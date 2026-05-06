@@ -7,6 +7,7 @@ type Article = {
   section: string;
   publishedAt: string;
   excerpt: string | null;
+  figureTag: string | null; // which leaderboard figure this is about
 };
 
 function timeAgo(iso: string): string {
@@ -16,40 +17,68 @@ function timeAgo(iso: string): string {
   return `${Math.floor(s / 86400)}d ago`;
 }
 
-async function fetchNews(): Promise<Article[]> {
+/** Find which figure name is mentioned in a string (case-insensitive). */
+function detectFigure(text: string, names: string[]): string | null {
+  const lower = text.toLowerCase();
+  for (const name of names) {
+    // Match any part of the name (first OR last) to catch "Swift" → "Taylor Swift"
+    const parts = name.split(/\s+/);
+    const isMatch = parts.some((p) => p.length > 3 && lower.includes(p.toLowerCase()));
+    if (isMatch) return name;
+  }
+  return null;
+}
+
+type GuardianResult = {
+  id: string;
+  webTitle: string;
+  webUrl: string;
+  sectionName: string;
+  webPublicationDate: string;
+  fields?: { headline?: string; trailText?: string };
+};
+
+async function fetchNews(figureNames: string[]): Promise<Article[]> {
   const key = process.env.GUARDIAN_API_KEY ?? "test";
-  const query = encodeURIComponent("celebrity viral trending culture");
+
+  // Build OR query from figure names — quoted for exact phrase matching
+  // Guardian supports: "Taylor Swift" OR "Elon Musk" OR ...
+  const orQuery = figureNames
+    .map((n) => `"${n}"`)
+    .join(" OR ");
+
   const url =
-    `https://content.guardianapis.com/search?q=${query}` +
-    `&section=culture|film|music|sport|technology` +
+    `https://content.guardianapis.com/search` +
+    `?q=${encodeURIComponent(orQuery)}` +
     `&show-fields=headline,trailText` +
-    `&page-size=8` +
+    `&page-size=10` +
     `&order-by=newest` +
     `&api-key=${key}`;
 
   try {
     const res = await fetch(url, { next: { revalidate: 300 } });
     if (!res.ok) return [];
+
     const json = (await res.json()) as {
-      response?: {
-        results?: {
-          id: string;
-          webTitle: string;
-          webUrl: string;
-          sectionName: string;
-          webPublicationDate: string;
-          fields?: { headline?: string; trailText?: string };
-        }[];
-      };
+      response?: { results?: GuardianResult[] };
     };
-    return (json.response?.results ?? []).map((r) => ({
-      id: r.id,
-      title: r.fields?.headline ?? r.webTitle,
-      url: r.webUrl,
-      section: r.sectionName,
-      publishedAt: r.webPublicationDate,
-      excerpt: r.fields?.trailText ?? null,
-    }));
+
+    return (json.response?.results ?? []).map((r) => {
+      const title = r.fields?.headline ?? r.webTitle;
+      const excerpt = r.fields?.trailText ?? null;
+      const figureTag =
+        detectFigure(title, figureNames) ??
+        (excerpt ? detectFigure(excerpt, figureNames) : null);
+      return {
+        id: r.id,
+        title,
+        url: r.webUrl,
+        section: r.sectionName,
+        publishedAt: r.webPublicationDate,
+        excerpt,
+        figureTag,
+      };
+    });
   } catch {
     return [];
   }
@@ -57,8 +86,8 @@ async function fetchNews(): Promise<Article[]> {
 
 function SidebarShell({ children }: { children: ReactNode }) {
   return (
-    <aside className="flex flex-col gap-4">
-      <h2 className="text-[11px] font-medium uppercase tracking-[0.08em] text-ink-3">
+    <aside className="flex flex-col gap-3 pt-10">
+      <h2 className="mb-1 text-[11px] font-medium uppercase tracking-[0.08em] text-ink-3">
         In the news
       </h2>
       {children}
@@ -66,8 +95,14 @@ function SidebarShell({ children }: { children: ReactNode }) {
   );
 }
 
-export default async function NewsSidebar() {
-  const articles = await fetchNews();
+export default async function NewsSidebar({
+  figureNames = [],
+}: {
+  figureNames?: string[];
+}) {
+  const articles = await fetchNews(
+    figureNames.length ? figureNames : ["celebrities", "sports", "music", "film"],
+  );
 
   if (!articles.length) {
     return (
@@ -91,22 +126,35 @@ export default async function NewsSidebar() {
           href={a.url}
           target="_blank"
           rel="noreferrer noopener"
-          className="group block rounded-lg border border-edge bg-card p-3.5 transition-shadow duration-150 hover:shadow-[0_2px_8px_rgba(0,0,0,0.06)]"
+          className="group block rounded-lg border border-edge bg-card p-3 transition-shadow duration-150 hover:shadow-[0_2px_8px_rgba(0,0,0,0.06)]"
         >
-          <p className="mb-1 text-[11px] font-medium uppercase tracking-[0.06em] text-ink-3">
-            {a.section} · {timeAgo(a.publishedAt)}
-          </p>
+          {/* Meta row */}
+          <div className="mb-1.5 flex items-center gap-1.5 flex-wrap">
+            {a.figureTag && (
+              <span className="rounded-full border border-edge bg-paper px-2 py-0.5 text-[10px] font-semibold text-ink">
+                {a.figureTag}
+              </span>
+            )}
+            <span className="text-[10px] text-ink-3">
+              {a.section} · {timeAgo(a.publishedAt)}
+            </span>
+          </div>
+
+          {/* Headline */}
           <p className="text-[13px] font-medium leading-snug text-ink group-hover:underline group-hover:underline-offset-2">
             {a.title}
           </p>
+
+          {/* Excerpt */}
           {a.excerpt && (
             <p
-              className="mt-1.5 line-clamp-2 text-[12px] leading-relaxed text-ink-2"
+              className="mt-1.5 line-clamp-2 text-[11px] leading-relaxed text-ink-2"
               dangerouslySetInnerHTML={{ __html: a.excerpt }}
             />
           )}
         </a>
       ))}
+
       <p className="text-[11px] text-ink-3">
         Headlines from{" "}
         <a

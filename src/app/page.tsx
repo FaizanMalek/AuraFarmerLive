@@ -8,7 +8,7 @@ import type { ActivityItem, FigurePublic } from "@/components/leaderboard-client
 import { createSupabaseClient } from "@/lib/supabase";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { parseVotedFigureIds, VOTE_SESSION_COOKIE } from "@/lib/vote-session";
-import { getAllFigurePhotos } from "@/lib/figure-photos";
+import { getAllFigurePhotos, ANIME_QUERY } from "@/lib/figure-photos";
 
 export const dynamic = "force-dynamic";
 export const fetchCache = "force-no-store";
@@ -119,6 +119,13 @@ export default async function Home() {
 
   const activity = await fetchActivity(supabase);
 
+  // Real-person names for targeted news (skip anime/fictional chars)
+  const animeSlugs = new Set(Object.keys(ANIME_QUERY));
+  const realPersonNames = normalized
+    .filter((f) => !animeSlugs.has(f.slug))
+    .slice(0, 20) // top 20 by score is plenty for a Guardian OR query
+    .map((f) => f.name);
+
   const jar = await cookies();
   let votedFigureIds: string[] = [];
   try {
@@ -161,7 +168,7 @@ export default async function Home() {
             <Suspense
               fallback={<div className="pt-10 text-[13px] text-ink-3">Loading news…</div>}
             >
-              <NewsSidebar />
+              <NewsSidebar figureNames={realPersonNames} />
             </Suspense>
           </div>
         </div>
